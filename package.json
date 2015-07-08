@@ -1,0 +1,23 @@
+{
+  "name": "well-read-server",
+  "version": "0.0.1",
+  "description": "Node JS Server App for Well Read",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "aws-lib": "?"
+  },
+  "engines": {
+    "node": "0.12.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/benlogan1981/WellReadServer"
+  },
+  "keywords": [
+    "node"
+  ],
+  "license": "?"
+}
