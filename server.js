@@ -5,6 +5,9 @@ var url = require('url'); // just for parsing request
 aws = require('aws-lib');
 prodAdv = aws.createProdAdvClient('AKIAJGCWOOREC5CFOMDQ', 'k7HMq6+6PV5HRq9jktvkbZfCH7iPZj02RVIgE+il', 'well0ac-21');
 
+// process.env.PORT lets the port be set by Heroku
+var port = process.env.PORT || 8080; // was 1337
+
 //create a server
 http.createServer(function (request, response) {
   //function called when request is received
@@ -17,7 +20,7 @@ http.createServer(function (request, response) {
     
   //amazonBookSearch(response);
   amazonBookLookup(queryData.ISBN, response);
-}).listen(1337, '127.0.0.1');
+}).listen(port);//, '127.0.0.1');
 
 
 function amazonBookSearch(response) {
@@ -52,4 +55,4 @@ function googleBooksLookup() {
     // interestingly this has a 'description' field which could be used for the first entry?
 }
 
-console.log('Server running at http://127.0.0.1:1337/');
+console.log('Server running at http://localhost:' + port + '/');
