@@ -3,7 +3,7 @@ var url = require('url'); // just for parsing request
 
 // https://github.com/livelycode/aws-lib
 aws = require('aws-lib');
-prodAdv = aws.createProdAdvClient('AKIAJGCWOOREC5CFOMDQ', 'k7HMq6+6PV5HRq9jktvkbZfCH7iPZj02RVIgE+il', 'well0ac-21');
+prodAdv = aws.createProdAdvClient(DONT COMMIT THIS);
 
 // process.env.PORT lets the port be set by Heroku
 //var port = process.env.PORT || 8080; // was 1337
