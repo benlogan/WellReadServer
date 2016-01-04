@@ -4,29 +4,26 @@ var pg = require('pg');
 
 // https://github.com/livelycode/aws-lib
 aws = require('aws-lib');
-// DON'T commit this key!!
-prodAdv = "DONT COMMIT"
 
-// DON'T commit this string!!
-var conString = "DONT COMMIT"
+prodAdv = aws.createProdAdvClient(process.env.AWS_ACCESSKEYID, process.env.AWS_SECRETACCESSKEY, process.env.AWS_ASSOCIATETAG);
 
-// process.env.PORT lets the port be set by Heroku
-//var port = process.env.PORT || 8080; // was 1337
-var port = 1337;
+var conString = process.env.DATABASE_URL;
+
+// let the port be set by Heroku
+var port = process.env.PORT || 1337; // locally, use 1337
 
 //create a server
 http.createServer(function (request, response) {
     //function called when request is received
 
     if(request.method=='POST') {
-        console.log("POST");
         var body = '';
         request.on('data', function (data) {
             body += data;
             //console.log("Partial body: " + body);
         });
         request.on('end', function () {
-            console.log("Body: " + body);
+            //console.log("Body: " + body);
             // body text looks like; "summary=just another summary test after star wars&isbn=1742207863"
             var parsedResponse = body.split('&');
             var summaryText = parsedResponse[0].split('=')[1];
@@ -53,7 +50,7 @@ http.createServer(function (request, response) {
             amazonBookLookup(queryData.ISBN, response);
         }
     }
-}).listen(port);//, '127.0.0.1');
+}).listen(port);
 
 function amazonBookSearch(searchString, response) {
     var options = {SearchIndex: "Books", Keywords: searchString};
@@ -138,7 +135,7 @@ function summaryFromDB(ISBN, response, bookJSON) {
         if(err) {
             return console.error('could not connect to postgres', err);
         }
-        client.query('SELECT text from public."SummaryText" where ISBN = ($1)', [ISBN], function(err, result) {
+        client.query('SELECT id, text from public."SummaryText" where ISBN = ($1)', [ISBN], function(err, result) {
         if(err) {
             return console.error('error running query', err);
         }
@@ -149,6 +146,7 @@ function summaryFromDB(ISBN, response, bookJSON) {
         // shows a neat way of streaming back rows one at a time
         for (var i = 0; i < result.rowCount; i++) {
             var summaryJSON = {
+                "id":result.rows[i].id,
                 "text":result.rows[i].text
             }           
             summary.push(summaryJSON);
@@ -197,4 +195,4 @@ function googleBooksLookup() {
     //volumeInfo.imageLinks.thumbnail
 }
 
-console.log('Server running at http://localhost:' + port + '/');
+console.log('Server running on port:' + port + '/');
