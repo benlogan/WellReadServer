@@ -165,11 +165,13 @@ function summaryFromDB(ISBN, response, bookJSON) {
 }
 
 function summaryToDB(ISBN, text) {
+    console.log('summaryToDB ISBN : ' + ISBN + ' text : ' + text);
     var client = new pg.Client(conString);
     client.connect(function(err) {
       if(err) {
         return console.error('could not connect to postgres', err);
       }
+      console.log('summaryToDB about to execute db insert');
       client.query('INSERT INTO public."SummaryText" (isbn, text) VALUES (($1),($2))', [ISBN, text], function(err, result) {
         if(err) {
           return console.error('error running query', err);
