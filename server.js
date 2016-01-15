@@ -25,15 +25,31 @@ http.createServer(function (request, response) {
         request.on('end', function () {
             //console.log("Body: " + body);
             // body text looks like; "summary=just another summary test after star wars&isbn=1742207863"
+            
             var parsedResponse = body.split('&');
             var summaryText = parsedResponse[0].split('=')[1];
             var ISBN = parsedResponse[1].split('=')[1];
             summaryToDB(ISBN, summaryText);
-        });
+
+            //async db call here is fine
+
+            response.writeHead(200, {'Content-Type': 'text/html'});
+            // CORS for local testing
+            response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
+            response.end('post received');
+            });
+
+        /*
+        var parsedResponse = body.split('&');
+        var summaryText = parsedResponse[0].split('=')[1];
+        var ISBN = parsedResponse[1].split('=')[1];
+        summaryToDB(ISBN, summaryText);
+
         response.writeHead(200, {'Content-Type': 'text/html'});
         // CORS for local testing
         response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
         response.end('post received');
+        */
     }
     else if(request.method=='GET') {
         //response.writeHead(200, {'Content-Type': 'text/plain'});
