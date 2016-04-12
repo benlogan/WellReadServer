@@ -2,12 +2,14 @@ var http = require('http'); //require the 'http' module
 var url = require('url'); // just for parsing request
 var pg = require('pg'); 
 
-var conString = "DONT COMMIT"
+var conString = process.env.DATABASE_URL;
 
-readFromDB('1742207863');
+//readFromDB('1742207863');
 //writeToDB('1742207863');
 //jsonWriteTest();
 //stringSplitTest();
+//newUser(123456789, "Ben Logan", "ben.logan@ubs.com");
+userExists("ben.logan@ubs.com");
 
 function readFromDB(ISBN) {
     var client = new pg.Client(conString);
@@ -43,6 +45,45 @@ function writeToDB(ISBN) {
           return console.error('error running query', err);
         }
         //console.log(result.rows[0]);
+        client.end();
+      });
+    });
+}
+
+function newUser(id, name, email) {
+    console.log('newUser id : ' + id + ' name : ' + name + ' email : ' + email);
+    var client = new pg.Client(conString);
+    client.connect(function(err) {
+      if(err) {
+        return console.error('could not connect to postgres', err);
+      }
+      console.log('newUser about to execute db insert');
+      client.query('INSERT INTO public."Users" (id, name, email) VALUES (($1),($2),($3))', [id, name, email], function(err, result) {
+        if(err) {
+            //console.log('QUERY : ' + client.query);
+            return console.error('error running query', err);
+        }
+        client.end();
+      });
+    });
+}
+
+function userExists(email) {
+    var client = new pg.Client(conString);
+    client.connect(function(err) {
+      if(err) {
+        return console.error('could not connect to postgres', err);
+      }
+      client.query('SELECT name from public."Users" where email = ($1)', [email], function(err, result) {
+        if(err) {
+          return console.error('error running query', err);
+        }
+        if(result.rowCount > 0) {
+            var name = result.rows[0].name;
+            console.log("Found User! : " + name);
+            //return name;
+        }
+
         client.end();
       });
     });

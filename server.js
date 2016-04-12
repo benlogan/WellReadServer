@@ -16,6 +16,9 @@ var port = process.env.PORT || 1337; // locally, use 1337
 http.createServer(function (request, response) {
     //function called when request is received
 
+    // WORKING HERE. handle multiple post requests, so we can process new users
+    // FIXME - eventually split out into proper microservices, auth should be completely seperate etc
+
     if(request.method=='POST') {
         var body = '';
         request.on('data', function (data) {
@@ -34,28 +37,16 @@ http.createServer(function (request, response) {
             //async db call here is fine
 
             response.writeHead(200, {'Content-Type': 'text/html'});
-            // CORS for local testing
-            response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
+            // CORS for local testing only?
+            //response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
             response.end('post received');
-            });
-
-        /*
-        var parsedResponse = body.split('&');
-        var summaryText = parsedResponse[0].split('=')[1];
-        var ISBN = parsedResponse[1].split('=')[1];
-        summaryToDB(ISBN, summaryText);
-
-        response.writeHead(200, {'Content-Type': 'text/html'});
-        // CORS for local testing
-        response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
-        response.end('post received');
-        */
+        });
     }
     else if(request.method=='GET') {
         //response.writeHead(200, {'Content-Type': 'text/plain'});
         response.writeHead(200, {'Content-Type': 'application/json'});
-        // CORS for local testing
-        response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
+        // CORS for local testing only?
+        //response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
       
         // parse request parameter?
         var queryData = url.parse(request.url, true).query;
@@ -64,6 +55,8 @@ http.createServer(function (request, response) {
             amazonBookSearch(queryData.q, response);
         } else if(queryData.ISBN) {
             amazonBookLookup(queryData.ISBN, response);
+        } else if(queryData.email) {
+            userLookup(queryData.email, response);
         }
     }
 }).listen(port);
@@ -112,7 +105,14 @@ function amazonBookLookup(ISBN, response) {
             
         //return the ASIN, but call it the ISBN
         //also return the Title from the ItemAttributes
-            
+        
+        // looks like some books, e.g. 'Lonely Planet France 9th Ed'
+        // dont have an image, resulting in an app crash when trying to read image URL here!
+        var imageURL = null;
+        if(item.MediumImage) {
+            imageURL = item.MediumImage.URL
+        }
+
         var JSONObj = 
                 { 
                     "book": {
@@ -120,7 +120,7 @@ function amazonBookLookup(ISBN, response) {
                         "author":item.ItemAttributes.Author, 
                         "publisher":item.ItemAttributes.Publisher, 
                         "isbn":item.ItemAttributes.ISBN,
-                        "image":item.MediumImage.URL
+                        "image":imageURL
                 }};
                 /*    
                     },
@@ -142,6 +142,31 @@ function amazonBookLookup(ISBN, response) {
     /*
     {"book": {"title":"Lonely Planet Argentina (Travel Guide)","author":["Lonely Planet","Sandra Bao","Gregor Clark","Carolyn McCarthy","Andy Symington","Lucas Vidgen"],"publisher":"Lonely Planet","isbn":"1742207863","image":"http://ecx.images-amazon.com/images/I/51J4ZfgklaL.jpg"},"summary": {"text":"first argentina book review"},"summary": {"text":"second argentina book review!"}}
     */
+}
+
+// test passed! http://127.0.0.1:1337/?email=ben.logan@ubs.com
+function userLookup(email, response) {
+    var client = new pg.Client(conString);
+    client.connect(function(err) {
+        if(err) {
+            return console.error('could not connect to postgres', err);
+        }
+        client.query('SELECT name from public."Users" where email = ($1)', [email], function(err, result) {
+        if(err) {
+          return console.error('error running query', err);
+        }
+        if(result.rowCount > 0) {
+            var name = {
+                "name":result.rows[0].name
+            }
+            console.log("Found User! : " + name.name);
+        }
+
+        response.end(JSON.stringify(name));
+
+        client.end();
+      });
+    });
 }
 
 // FIXME blocking call issue, just passing the response in for now to get it working!
@@ -189,6 +214,23 @@ function summaryToDB(ISBN, text) {
       }
       console.log('summaryToDB about to execute db insert');
       client.query('INSERT INTO public."SummaryText" (isbn, text) VALUES (($1),($2))', [ISBN, text], function(err, result) {
+        if(err) {
+          return console.error('error running query', err);
+        }
+        client.end();
+      });
+    });
+}
+
+function newUser(ID, name, email) {
+    console.log('newUser ID : ' + ID + ' name : ' + name + ' email : ' + email);
+    var client = new pg.Client(conString);
+    client.connect(function(err) {
+      if(err) {
+        return console.error('could not connect to postgres', err);
+      }
+      console.log('newUser about to execute db insert');
+      client.query('INSERT INTO public."Users" (ID, name, email) VALUES (($1),($2),($3))', [ID, name, email], function(err, result) {
         if(err) {
           return console.error('error running query', err);
         }
