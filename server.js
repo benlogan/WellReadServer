@@ -2,257 +2,119 @@ var http = require('http'); //require the 'http' module
 var url = require('url'); // just for parsing request
 var pg = require('pg'); 
 
+// my stuff
+var books = require('./books.js');
+var users = require('./users.js');
+var summaries = require('./summaries.js');
+
+var express = require('express');
+var app = express();
+
 // https://github.com/livelycode/aws-lib
-aws = require('aws-lib');
+aws = require('aws-lib'); // same as GLOBAL.
 
 prodAdv = aws.createProdAdvClient(process.env.AWS_ACCESSKEYID, process.env.AWS_SECRETACCESSKEY, process.env.AWS_ASSOCIATETAG);
 
-var conString = process.env.DATABASE_URL;
+conString = process.env.DATABASE_URL;
 
 // let the port be set by Heroku
 var port = process.env.PORT || 1337; // locally, use 1337
 
-//create a server
-http.createServer(function (request, response) {
-    //function called when request is received
+// a middleware with no mount path; gets executed for every request to the app
+app.use(function(req, res, next) {
+    //res.setHeader('charset', 'utf-8')
+    // CORS for local testing only?
+    res.writeHead(200, {'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json'});
+    //res.writeHead(200, {'Content-Type': 'application/json'});
+    next();
+});
 
-    // WORKING HERE. handle multiple post requests, so we can process new users
-    // FIXME - eventually split out into proper microservices, auth should be completely seperate etc
+// respond with "hello world" when a GET request is made to the homepage
+app.get('/bookSearch', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.amazonBookSearch(queryData.q, response);
+});
+app.get('/bookLookup', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.amazonBookLookup(queryData.ISBN, response);
+});
+app.get('/userLookup', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    users.userLookup(queryData.oAuthToken, response);
+});
+app.get('/topSummaries', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    summaries.topSummaries(queryData.number, response);
+});
 
-    if(request.method=='POST') {
-        var body = '';
-        request.on('data', function (data) {
-            body += data;
-            //console.log("Partial body: " + body);
-        });
-        request.on('end', function () {
-            //console.log("Body: " + body);
-            // body text looks like; "summary=just another summary test after star wars&isbn=1742207863"
-            
-            var parsedResponse = body.split('&');
-            var summaryText = parsedResponse[0].split('=')[1];
-            var ISBN = parsedResponse[1].split('=')[1];
-            summaryToDB(ISBN, summaryText);
-
-            //async db call here is fine
-
-            response.writeHead(200, {'Content-Type': 'text/html'});
-            // CORS for local testing only?
-            //response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
-            response.end('post received');
-        });
-    }
-    else if(request.method=='GET') {
-        //response.writeHead(200, {'Content-Type': 'text/plain'});
-        response.writeHead(200, {'Content-Type': 'application/json'});
-        // CORS for local testing only?
-        //response.writeHead(200, {'Access-Control-Allow-Origin': '*'});
-      
-        // parse request parameter?
-        var queryData = url.parse(request.url, true).query;
-      
-        if(queryData.q) {
-            amazonBookSearch(queryData.q, response);
-        } else if(queryData.ISBN) {
-            amazonBookLookup(queryData.ISBN, response);
-        } else if(queryData.email) {
-            userLookup(queryData.email, response);
-        }
-    }
-}).listen(port);
-
-function amazonBookSearch(searchString, response) {
-    var options = {SearchIndex: "Books", Keywords: searchString};
-    
-    prodAdv.call("ItemSearch", options, function(err, result) {
-        if(err) {
-            console.error('Amazon Book Search Problem', err);
-        }
-        
-        //response.end(JSON.stringify(result));
-        
-        var books = [];
-        
-        //iterate Item, we only care about the top 5
-        for(var index in result.Items.Item) {
-            var item = result.Items.Item[index];
-            
-            //return the ASIN, but call it the ISBN
-            //also return the Title from the ItemAttributes
-            
-            var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ASIN };
-            books.push(JSONObj);
-        }
-    
-        response.end(JSON.stringify(books));
-    })
-}
-
-function amazonBookLookup(ISBN, response) {
-    // ISBN for Freakonomics; 0141019018 (for books that is the ASIN)
-    //var options = {ResponseGroup: "Images", ItemId : "0141019018"};
-    var options = {ResponseGroup: "ItemAttributes,Images", ItemId : ISBN};
-    
-    prodAdv.call("ItemLookup", options, function(err, result) {
-        if(err) {
-            console.error('Amazon Book Lookup Problem', err);
-        }
-        
-        //response.end(JSON.stringify(result));
-        
-        //iterate Item, we only care about the first (there should only ever be one)
-        var item = result.Items.Item;//result.Items.Item[index];
-            
-        //return the ASIN, but call it the ISBN
-        //also return the Title from the ItemAttributes
-        
-        // looks like some books, e.g. 'Lonely Planet France 9th Ed'
-        // dont have an image, resulting in an app crash when trying to read image URL here!
-        var imageURL = null;
-        if(item.MediumImage) {
-            imageURL = item.MediumImage.URL
-        }
-
-        var JSONObj = 
-                { 
-                    "book": {
-                        "title":item.ItemAttributes.Title,
-                        "author":item.ItemAttributes.Author, 
-                        "publisher":item.ItemAttributes.Publisher, 
-                        "isbn":item.ItemAttributes.ISBN,
-                        "image":imageURL
-                }};
-                /*    
-                    },
-                    "summary":{
-                        "text":summaryFromDB(item.ItemAttributes.ISBN)
-                    }
-                };
-                */
-    
-        //"text":summaryFromDB(item.ItemAttributes.ISBN);
-
-        //response.end(JSON.stringify(JSONObj));
-
-        //response.write(JSON.stringify(JSONObj));
-        summaryFromDB(item.ItemAttributes.ISBN, response, JSONObj);
-    })
-    
-    // so, response used to look like this!
-    /*
-    {"book": {"title":"Lonely Planet Argentina (Travel Guide)","author":["Lonely Planet","Sandra Bao","Gregor Clark","Carolyn McCarthy","Andy Symington","Lucas Vidgen"],"publisher":"Lonely Planet","isbn":"1742207863","image":"http://ecx.images-amazon.com/images/I/51J4ZfgklaL.jpg"},"summary": {"text":"first argentina book review"},"summary": {"text":"second argentina book review!"}}
-    */
-}
-
-// test passed! http://127.0.0.1:1337/?email=ben.logan@ubs.com
-function userLookup(email, response) {
-    var client = new pg.Client(conString);
-    client.connect(function(err) {
-        if(err) {
-            return console.error('could not connect to postgres', err);
-        }
-        client.query('SELECT name from public."Users" where email = ($1)', [email], function(err, result) {
-        if(err) {
-          return console.error('error running query', err);
-        }
-        if(result.rowCount > 0) {
-            var name = {
-                "name":result.rows[0].name
-            }
-            console.log("Found User! : " + name.name);
-        }
-
-        response.end(JSON.stringify(name));
-
-        client.end();
-      });
+// POST method route
+app.post('/writeSummary', function (request, response) {
+    var body = '';
+    request.on('data', function (data) {
+        body += data;
+        //console.log("Partial body: " + body);
     });
-}
+    request.on('end', function () {
+        //console.log("Body: " + body);
+        // body text looks like; "summary=just another summary test after star wars&isbn=1742207863"
+        
+        var parsedResponse = body.split('&');
+        var oAuthID = parsedResponse[0].split('=')[1];
+        var summaryText = parsedResponse[1].split('=')[1];
+        var ISBN = parsedResponse[2].split('=')[1];
+        
+        summaries.summaryToDB(oAuthID, ISBN, summaryText, response);
 
-// FIXME blocking call issue, just passing the response in for now to get it working!
-function summaryFromDB(ISBN, response, bookJSON) {
-    var client = new pg.Client(conString);
-    client.connect(function(err) {
-        if(err) {
-            return console.error('could not connect to postgres', err);
-        }
-        client.query('SELECT id, text from public."SummaryText" where ISBN = ($1)', [ISBN], function(err, result) {
-        if(err) {
-            return console.error('error running query', err);
-        }
-        //var summaryText = result.rows[0].text;
-        var summary = [];
+        //async db call here is fine - actually it's not, hence have completed the response after the db inset in this case - to allow for a page refresh
 
-        // FIXME http://stackoverflow.com/questions/9205496/how-to-make-connection-to-postgres-via-node-js
-        // shows a neat way of streaming back rows one at a time
-        for (var i = 0; i < result.rowCount; i++) {
-            var summaryJSON = {
-                "id":result.rows[i].id,
-                "text":result.rows[i].text
-            }           
-            summary.push(summaryJSON);
-        }
-
-        //bookJSON.summary = summaryJSON;
-        if(summary.length > 0) {
-            bookJSON.summaryList = summary;    
-        }
-
-        response.end(JSON.stringify(bookJSON));
-
-        client.end();
-        });
+        //response.writeHead(200, {'Content-Type': 'text/html'});
+        //response.end('post acknowledged');
     });
-}
+    //response.send('POST request to the homepage');
+});
 
-function summaryToDB(ISBN, text) {
-    console.log('summaryToDB ISBN : ' + ISBN + ' text : ' + text);
-    var client = new pg.Client(conString);
-    client.connect(function(err) {
-      if(err) {
-        return console.error('could not connect to postgres', err);
-      }
-      console.log('summaryToDB about to execute db insert');
-      client.query('INSERT INTO public."SummaryText" (isbn, text) VALUES (($1),($2))', [ISBN, text], function(err, result) {
-        if(err) {
-          return console.error('error running query', err);
-        }
-        client.end();
-      });
+app.post('/voteSummary', function (request, response) {
+    var body = '';
+    request.on('data', function (data) {
+        body += data;
     });
-}
+    request.on('end', function () {
+        
+        var parsedResponse = body.split('&');
+        var oAuthID = parsedResponse[0].split('=')[1];
+        var summaryID = parsedResponse[1].split('=')[1];
+        var upDown = parsedResponse[2].split('=')[1];
+        
+        summaries.voteSummaryToDB(oAuthID, summaryID, upDown);
 
-function newUser(ID, name, email) {
-    console.log('newUser ID : ' + ID + ' name : ' + name + ' email : ' + email);
-    var client = new pg.Client(conString);
-    client.connect(function(err) {
-      if(err) {
-        return console.error('could not connect to postgres', err);
-      }
-      console.log('newUser about to execute db insert');
-      client.query('INSERT INTO public."Users" (ID, name, email) VALUES (($1),($2),($3))', [ID, name, email], function(err, result) {
-        if(err) {
-          return console.error('error running query', err);
-        }
-        client.end();
-      });
+        //async db call here is fine
+
+        response.end('post acknowledged');
     });
-}
+});
 
-function googleBooksLookup() {
-    //https://books.google.co.uk/books?id=wNPnl5zYA-cC&dq=freakonomics&hl=en&sa=X&ei=ewmdVYs4xuVSrNyBoAs&redir_esc=y
-    
-    // api call; https://www.googleapis.com/books/v1/volumes/wNPnl5zYA-cC
-    // need the equivelant by ISBN - you have to search instead;
-    // https://www.googleapis.com/books/v1/volumes?q=isbn:0062132342
-    
-    // interestingly this has a 'description' field which could be used for the first entry?
-    
-    // JSON path; description
-    //volumeInfo.description
-    
-    // JSON path; image
-    //volumeInfo.imageLinks.thumbnail
-}
+app.post('/writeUser', function (request, response) {
+    var body = '';
+    request.on('data', function (data) {
+        body += data;
+    });
+    request.on('end', function () {
+        var parsedResponse = body.split('&');
+        var oAuthID = parsedResponse[0].split('=')[1];
+        var oAuthMethod = parsedResponse[1].split('=')[1];
+        var name = parsedResponse[2].split('=')[1];
+        var email = parsedResponse[3].split('=')[1];
+        var oAuthToken = parsedResponse[4].split('=')[1];
+        var oAuthTokenSecret = parsedResponse[5].split('=')[1];
+        users.newUser(oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret);
 
-console.log('Server running on port:' + port + '/');
+        //async db call here is fine
+
+        //response.writeHead(200, {'Content-Type': 'text/html'});
+        response.end('post acknowledged');
+    });
+});
+
+app.listen(port, function () {
+    console.log('WellRead Server - listening on port ' + port);
+});
