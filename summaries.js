@@ -11,7 +11,7 @@ exports.summaryToDB = function (oAuthID, ISBN, text, response) {
         return console.error('could not connect to postgres', err);
       }
       console.log('summaryToDB about to execute db insert');
-      client.query('INSERT INTO public."SummaryText" (oAuthID, isbn, text) VALUES (($1),($2),($3))', [oAuthID, ISBN, text], function(err, result) {
+      client.query('INSERT INTO public."SummaryText" (oAuthID, isbn, text, datetime) VALUES (($1),($2),($3),now())', [oAuthID, ISBN, text], function(err, result) {
         if(err) {
           return console.error('error running query', err);
         }
@@ -21,17 +21,50 @@ exports.summaryToDB = function (oAuthID, ISBN, text, response) {
     });
 }
 
-exports.voteSummaryToDB = function (oAuthID, summaryID, vote) {
+exports.voteSummaryToDB = function (oAuthID, summaryID, vote, response) {
     var client = new pg.Client(conString);
     client.connect(function(err) {
       if(err) {
         return console.error('could not connect to postgres', err);
       }
       console.log('voteSummaryToDB about to execute db insert');
-      client.query('INSERT INTO public."SummaryVotes" (summaryID, vote, oAuthID, timestamp) VALUES (($1),($2),($3),($4))', [summaryID, vote, oAuthID, new Date()], function(err, result) {
+      client.query('INSERT INTO public."SummaryVotes" (summaryID, vote, oAuthID, datetime) VALUES (($1),($2),($3),now())', [summaryID, vote, oAuthID], function(err, result) {
+        if(err) {
+          response.end('post error!');
+          return console.error('error running query', err);
+        }
+
+        response.end('post acknowledged');
+
+        client.end();
+      });
+    });
+}
+
+exports.voteSummaryFromDB = function (oAuthID, response) {
+    var client = new pg.Client(conString);
+    client.connect(function(err) {
+      if(err) {
+        return console.error('could not connect to postgres', err);
+      }
+      console.log('voteSummaryFromDB about to execute db select');
+
+      client.query('SELECT summaryid, SUM(vote) as votes from public."SummaryVotes" where oauthid = ($1) group by summaryid', [oAuthID], function(err, result) {
         if(err) {
           return console.error('error running query', err);
         }
+
+        var votesJSON = [];
+        for (var i = 0; i < result.rowCount; i++) {
+          var voteJSON = {
+            "id":result.rows[i].summaryid,
+            "count":result.rows[i].votes
+          }
+          votesJSON.push(voteJSON);
+        }
+
+        response.end(JSON.stringify(votesJSON));
+
         client.end();
       });
     });
@@ -46,7 +79,7 @@ exports.summaryFromDB = function (ISBN, response, bookJSON) {
         }
         //client.query('SELECT id, text from public."SummaryText" where ISBN = ($1)', [ISBN], function(err, result) {
         //select id, text, SUM(v.vote) as votes from public."SummaryText" t, public."SummaryVotes" v where t.id=v.summaryid AND ISBN='1742200524' group by id;
-        client.query('SELECT id, text, COALESCE(SUM(v.vote),0) as votes from public."SummaryText" t LEFT OUTER JOIN public."SummaryVotes" v ON t.id=v.summaryid where ISBN = ($1) group by id order by votes DESC, id', [ISBN], function(err, result) {
+        client.query('SELECT t.id, t.text, COALESCE(SUM(v.vote),0) as votes, u.name, t.datetime from public."SummaryText" t JOIN public."Users" u ON t.oauthid=u.oauthid LEFT OUTER JOIN public."SummaryVotes" v ON t.id=v.summaryid where ISBN = ($1) group by t.id, u.name order by votes DESC, id', [ISBN], function(err, result) {
         if(err) {
             return console.error('error running query', err);
         }
@@ -58,7 +91,9 @@ exports.summaryFromDB = function (ISBN, response, bookJSON) {
         for (var i = 0; i < result.rowCount; i++) {
             var summaryJSON = {
                 "id":result.rows[i].id,
+                "datetime":result.rows[i].datetime,
                 "text":result.rows[i].text,
+                "name":result.rows[i].name,
                 "votes":result.rows[i].votes
             }           
             summary.push(summaryJSON);

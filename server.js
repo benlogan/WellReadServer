@@ -13,7 +13,7 @@ var app = express();
 // https://github.com/livelycode/aws-lib
 aws = require('aws-lib'); // same as GLOBAL.
 
-prodAdv = aws.createProdAdvClient(process.env.AWS_ACCESSKEYID, process.env.AWS_SECRETACCESSKEY, process.env.AWS_ASSOCIATETAG);
+prodAdv = aws.createProdAdvClient(process.env.AWS_ACCESSKEYID, process.env.AWS_SECRETACCESSKEY, process.env.AWS_ASSOCIATETAG, {"host":"webservices.amazon.co.uk"});
 
 conString = process.env.DATABASE_URL;
 
@@ -34,6 +34,16 @@ app.get('/bookSearch', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookSearch(queryData.q, response);
 });
+/*
+app.get('/movieSearch', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.amazonMovieSearch(queryData.q, response);
+});
+app.get('/movieLookup', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.amazonMovieLookupOnly(queryData.ASIN, response);
+});
+*/
 app.get('/bookLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookLookup(queryData.ISBN, response);
@@ -45,6 +55,10 @@ app.get('/userLookup', function(request, response) {
 app.get('/topSummaries', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     summaries.topSummaries(queryData.number, response);
+});
+app.get('/votesLookup', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    summaries.voteSummaryFromDB(queryData.oAuthID, response);
 });
 
 // POST method route
@@ -60,7 +74,8 @@ app.post('/writeSummary', function (request, response) {
         
         var parsedResponse = body.split('&');
         var oAuthID = parsedResponse[0].split('=')[1];
-        var summaryText = parsedResponse[1].split('=')[1];
+        var summaryText = parsedResponse[1].substring(parsedResponse[1].indexOf('=') + 1)
+        //var summaryText = parsedResponse[1].split(/=(.+)?/)[1]; // important, split only on first '=', otherwise you will ignore that character and everything after it, if it occurs in the body of the posted text! that reg expression can't be trusted!
         var ISBN = parsedResponse[2].split('=')[1];
         
         summaries.summaryToDB(oAuthID, ISBN, summaryText, response);
@@ -85,11 +100,12 @@ app.post('/voteSummary', function (request, response) {
         var summaryID = parsedResponse[1].split('=')[1];
         var upDown = parsedResponse[2].split('=')[1];
         
-        summaries.voteSummaryToDB(oAuthID, summaryID, upDown);
+        summaries.voteSummaryToDB(oAuthID, summaryID, upDown, response);
 
         //async db call here is fine
+        //not really, because subsequent page refresh will occur before the db has necessarily updated!
 
-        response.end('post acknowledged');
+        //response.end('post acknowledged');
     });
 });
 

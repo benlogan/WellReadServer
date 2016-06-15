@@ -33,7 +33,7 @@ exports.newUser = function (oAuthID, oAuthMethod, name, email, oAuthToken, oAuth
             return console.error('could not connect to postgres', err);
         }
         console.log('newUser about to execute db insert');
-        client.query('INSERT INTO public."Users" (oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret) VALUES (($1),($2),($3),($4),($5),($6))', [oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret], function(err, result) {
+        client.query('INSERT INTO public."Users" (oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret, datetime) VALUES (($1),($2),($3),($4),($5),($6), now())', [oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret], function(err, result) {
             if(err) {
                 return console.error('error running query', err);
             }

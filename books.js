@@ -4,6 +4,7 @@ exports.amazonBookSearch = function (searchString, response) {
     console.log('About to execute book search for : ' + searchString);
     var options = {SearchIndex: "Books", Keywords: searchString};
     
+    //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/ItemSearch.html
     prodAdv.call("ItemSearch", options, function(err, result) {
         if(err) {
             console.error('Amazon Book Search Problem', err);
@@ -39,19 +40,27 @@ exports.amazonBookLookupOnly = function(ISBN, callback) {
         var item = result.Items.Item;
 
         var imageURL = null;
-        if(item.MediumImage) {
+        if(item && item.MediumImage) {
             imageURL = item.MediumImage.URL
         }
 
-        var book = { 
-            "book": {
-                "title":item.ItemAttributes.Title,
-                "author":item.ItemAttributes.Author, 
-                "publisher":item.ItemAttributes.Publisher, 
-                "isbn":item.ItemAttributes.ISBN,
-                "image":imageURL
-            }
-        };
+        if(item) {
+            var book = { 
+                "book": {
+                    "title":item.ItemAttributes.Title,
+                    "author":item.ItemAttributes.Author, 
+                    "publisher":item.ItemAttributes.Publisher, 
+                    "isbn":item.ItemAttributes.ISBN,
+                    "image":imageURL
+                }
+            };
+        } else {
+            var book = {
+                "book": {
+                    "title":'Book not found!'
+                }
+            };
+        }
         callback(book);
     })
 }
@@ -77,7 +86,7 @@ exports.amazonBookLookup = function (ISBN, response) {
         // looks like some books, e.g. 'Lonely Planet France 9th Ed'
         // dont have an image, resulting in an app crash when trying to read image URL here!
         var imageURL = null;
-        if(item.MediumImage) {
+        if(item && item.MediumImage) {
             imageURL = item.MediumImage.URL
         }
 
