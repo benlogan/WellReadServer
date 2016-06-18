@@ -74,7 +74,7 @@ app.post('/writeSummary', function (request, response) {
         
         var parsedResponse = body.split('&');
         var oAuthID = parsedResponse[0].split('=')[1];
-        var summaryText = parsedResponse[1].substring(parsedResponse[1].indexOf('=') + 1)
+        var summaryText = decodeURIComponent(parsedResponse[1].substring(parsedResponse[1].indexOf('=') + 1));
         //var summaryText = parsedResponse[1].split(/=(.+)?/)[1]; // important, split only on first '=', otherwise you will ignore that character and everything after it, if it occurs in the body of the posted text! that reg expression can't be trusted!
         var ISBN = parsedResponse[2].split('=')[1];
         
