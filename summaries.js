@@ -124,30 +124,33 @@ exports.topSummaries = function (number, response) {
         var summary = [];
         var resultCount = result.rowCount;
         // need recursion here rather than iteration, to connect the response to the final callback!
-        var counter = 0;
-        repeater(counter);
-        function repeater(i) {
-            var isbn = result.rows[i].isbn;
-            var summaryCount = result.rows[i].summary_count;
-            books.amazonBookLookupOnly(isbn, function(result) { 
-              var summaryJSON = {
-                "isbn":isbn,
-                "title":result.book.title,
-                "author":result.book.author,
-                "summary_count":summaryCount
-              }
-              console.log('adding to top summaries the book : ' + summaryJSON.title);  
-              summary.push(summaryJSON);
-              counter++;
-              if(counter < resultCount) {
-                repeater(counter);
-              } else {
-                // we are finished
-                response.end(JSON.stringify(summary));
-              }
-            });
+        if(resultCount > 0) {
+          var counter = 0;
+          repeater(counter);
+          function repeater(i) {
+              var isbn = result.rows[i].isbn;
+              var summaryCount = result.rows[i].summary_count;
+              books.amazonBookLookupOnly(isbn, function(result) { 
+                  var summaryJSON = {
+                    "isbn":isbn,
+                    "title":result.book.title,
+                    "author":result.book.author,
+                    "summary_count":summaryCount
+                  }
+                  console.log('adding to top summaries the book : ' + summaryJSON.title);  
+                  summary.push(summaryJSON);
+                  counter++;
+                  if(counter < resultCount) {
+                    repeater(counter);
+                  } else {
+                    // we are finished
+                    response.end(JSON.stringify(summary));
+                  }
+              });
+          }
+        } else {
+            response.end();
         }
-
         client.end();
         });
     });
