@@ -93,6 +93,7 @@ exports.amazonBookLookup = function (ISBN, response) {
         var JSONObj = 
                 { 
                     "book": {
+                        "urlAmazon":item.DetailPageURL,
                         "title":item.ItemAttributes.Title,
                         "author":item.ItemAttributes.Author, 
                         "publisher":item.ItemAttributes.Publisher, 
