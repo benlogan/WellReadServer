@@ -4,9 +4,9 @@
 
 --delete from public."Users" where id = '999';
 
-delete from public."Users";
-delete from public."SummaryText";
-delete from public."SummaryVotes";
+--delete from public."Users";
+--delete from public."SummaryText";
+--delete from public."SummaryVotes";
 
 --select name from public."Users" where oAuthToken = '160674689-KfGH80of5oem1H3oz5DoOjm22ZgzEJXVMa8a2Lvw';
 
@@ -47,3 +47,9 @@ select summaryid, SUM(vote) from public."SummaryVotes" where oauthid = '16067468
 --select isbn, count(isbn) as summaryTotals from public."SummaryText" group by isbn order by summaryTotals DESC limit 5;
 --or, I'd already written this!
 select isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit 5;
+
+
+
+
+--update public."SummaryText" SET isbn='9780141187761' where isbn = '014118776X';
+--delete from public."SummaryText" where isbn = '0349113467';
