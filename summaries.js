@@ -132,7 +132,7 @@ exports.topSummaries = function (number, response) {
               var summaryCount = result.rows[i].summary_count;
               books.amazonBookLookupOnly(isbn, function(result) { 
                   var summaryJSON = {
-                    "isbn":isbn,
+                    "asin":isbn,
                     "title":result.book.title,
                     "author":result.book.author,
                     "summary_count":summaryCount

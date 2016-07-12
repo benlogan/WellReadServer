@@ -21,7 +21,7 @@ exports.amazonBookSearch = function (searchString, response) {
                 //return the ASIN, but call it the ISBN - no, the ASIN/ISBN is not the correct 13 digit ISBN, use the EAN
                 //also return the Title from the ItemAttributes
                 
-                var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN };
+                var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
                 books.push(JSONObj);
             }
         
@@ -30,14 +30,15 @@ exports.amazonBookSearch = function (searchString, response) {
     })
 }
 
-exports.amazonBookLookupOnly = function(ISBN, callback) {
-    var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
+exports.amazonBookLookupOnly = function(ASIN, callback) {
+    var options = {ResponseGroup: "ItemAttributes,Images", ItemId : ASIN};
+    //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
     
     prodAdv.call("ItemLookup", options, function(err, result) {
         if(err) {
             console.error('Amazon Book Lookup Problem', err);
         }
-        var item = result.Items.Item[0];
+        var item = result.Items.Item;
 
         var imageURL = null;
         if(item && item.MediumImage) {
@@ -50,7 +51,8 @@ exports.amazonBookLookupOnly = function(ISBN, callback) {
                     "title":item.ItemAttributes.Title,
                     "author":item.ItemAttributes.Author, 
                     "publisher":item.ItemAttributes.Publisher, 
-                    "isbn":ISBN,//item.ItemAttributes.ISBN,
+                    "isbn":item.ItemAttributes.EAN,
+                    "asin":ASIN,
                     "image":imageURL
                 }
             };
@@ -65,11 +67,12 @@ exports.amazonBookLookupOnly = function(ISBN, callback) {
     })
 }
 
-exports.amazonBookLookup = function (ISBN, response) {
+exports.amazonBookLookup = function (ASIN, response) {
     // ISBN for Freakonomics; 0141019018 (for books that is the ASIN)
     // we aren't searcing by ASIN any more, but by a proper 13 digit ISBN, the EAN - hence a search index (IdType) now needs to be specified!
     //var options = {ResponseGroup: "Images", ItemId : "0141019018"};
-    var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
+    //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
+    var options = {ResponseGroup: "ItemAttributes,Images", ItemId : ASIN};
     
     prodAdv.call("ItemLookup", options, function(err, result) {
         if(err) {
@@ -80,7 +83,7 @@ exports.amazonBookLookup = function (ISBN, response) {
         
         // iterate Item, we only care about the first (there should only ever be one) 
         // now that we aren't using a unique amazon ID there won't only be one! use the first for now...
-        var item = result.Items.Item[0];
+        var item = result.Items.Item;
         
         // looks like some books, e.g. 'Lonely Planet France 9th Ed'
         // dont have an image, resulting in an app crash when trying to read image URL here!
@@ -96,7 +99,8 @@ exports.amazonBookLookup = function (ISBN, response) {
                         "title":item.ItemAttributes.Title,
                         "author":item.ItemAttributes.Author, 
                         "publisher":item.ItemAttributes.Publisher, 
-                        "isbn":ISBN,//item.ItemAttributes.ISBN,
+                        "isbn":item.ItemAttributes.EAN,
+                        "asin":ASIN,
                         "image":imageURL
                 }};
                 /*    
@@ -112,7 +116,7 @@ exports.amazonBookLookup = function (ISBN, response) {
         //response.end(JSON.stringify(JSONObj));
 
         //response.write(JSON.stringify(JSONObj));
-        summaries.summaryFromDB(ISBN, response, JSONObj);
+        summaries.summaryFromDB(ASIN, response, JSONObj);
     })
     
     // so, response used to look like this!

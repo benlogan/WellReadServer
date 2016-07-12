@@ -46,7 +46,7 @@ app.get('/movieLookup', function(request, response) {
 */
 app.get('/bookLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
-    books.amazonBookLookup(queryData.ISBN, response);
+    books.amazonBookLookup(queryData.ASIN, response);
 });
 app.get('/userLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
