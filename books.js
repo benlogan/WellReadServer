@@ -41,8 +41,8 @@ exports.amazonBookLookupOnly = function(ASIN, callback) {
         var item = result.Items.Item;
 
         var imageURL = null;
-        if(item && item.MediumImage) {
-            imageURL = item.MediumImage.URL
+        if(item && item.LargeImage) {
+            imageURL = item.LargeImage.URL
         }
 
         if(item) {
@@ -88,8 +88,8 @@ exports.amazonBookLookup = function (ASIN, response) {
         // looks like some books, e.g. 'Lonely Planet France 9th Ed'
         // dont have an image, resulting in an app crash when trying to read image URL here!
         var imageURL = null;
-        if(item && item.MediumImage) {
-            imageURL = item.MediumImage.URL
+        if(item && item.LargeImage) {
+            imageURL = item.LargeImage.URL
         }
 
         var JSONObj = 
