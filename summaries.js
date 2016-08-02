@@ -130,23 +130,36 @@ exports.topSummaries = function (number, response) {
           function repeater(i) {
               var isbn = result.rows[i].isbn;
               var summaryCount = result.rows[i].summary_count;
-              books.amazonBookLookupOnly(isbn, function(result) { 
-                  var summaryJSON = {
-                    "asin":isbn,
-                    "title":result.book.title,
-                    "author":result.book.author,
-                    "summary_count":summaryCount
-                  }
-                  console.log('adding to top summaries the book : ' + summaryJSON.title);  
-                  summary.push(summaryJSON);
-                  counter++;
-                  if(counter < resultCount) {
-                    repeater(counter);
-                  } else {
-                    // we are finished
-                    response.end(JSON.stringify(summary));
-                  }
-              });
+              
+              // can't call this too frequently, need a 1 second delay or AWS service can fail
+              // remember node is single thread and we don't want to block execution, needs to be a non-blocking sleep...
+              
+              // FIXME shouldn't need the AWS call here at all, should just have the book title and author in our DB!
+              // the 300ms is going to mean this takes 3000ms, minimum for a top 10 list - 3 seconds
+
+              setTimeout(function() {
+                books.amazonBookLookupOnly(isbn, function(result) {
+                    if(!result) {
+                      response.end();
+                    } else {
+                      var summaryJSON = {
+                        "asin":isbn,
+                        "title":result.book.title,
+                        "author":result.book.author,
+                        "summary_count":summaryCount
+                      }
+                      console.log('adding to top summaries the book : ' + summaryJSON.title);  
+                      summary.push(summaryJSON);
+                      counter++;
+                      if(counter < resultCount) {
+                        repeater(counter);
+                      } else {
+                        // we are finished
+                        response.end(JSON.stringify(summary));
+                      }
+                    }
+                });
+              }, 300);
           }
         } else {
             response.end();

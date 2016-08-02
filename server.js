@@ -48,6 +48,10 @@ app.get('/bookLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookLookup(queryData.ASIN, response);
 });
+app.get('/topBooks', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.amazonTopBooks(response);
+});
 app.get('/userLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     users.userLookup(queryData.oAuthToken, response);
