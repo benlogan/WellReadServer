@@ -3,3 +3,8 @@
 --delete from public."SummaryText" where id = '122';
 
 select * from public."SummaryText";
+
+-- remove duplicate text, can result from scraping
+DELETE FROM public."SummaryText" WHERE id IN (
+SELECT id FROM (SELECT id, ROW_NUMBER() OVER (partition BY text ORDER BY id) AS rnum FROM public."SummaryText") t WHERE t.rnum > 1
+);
