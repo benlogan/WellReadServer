@@ -50,7 +50,11 @@ app.get('/bookLookup', function(request, response) {
 });
 app.get('/topBooks', function(request, response) {
     var queryData = url.parse(request.url, true).query;
-    books.amazonTopBooks(response);
+    books.amazonBookLists("TopSellers", response);
+});
+app.get('/newBooks', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.amazonBookLists("NewReleases", response);
 });
 app.get('/userLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;

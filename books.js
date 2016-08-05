@@ -2,7 +2,7 @@ var summaries = require('./summaries.js');
 
 exports.amazonBookSearch = function (searchString, response) {
     console.log('About to execute book search for : ' + searchString);
-    var options = {SearchIndex: "Books", Keywords: searchString, ResponseGroup: "ItemAttributes"};
+    var options = {SearchIndex: "Books", Keywords: searchString, Availability: "Available", MerchantId: "Amazon", ResponseGroup: "ItemAttributes"};
     
     //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/ItemSearch.html
     prodAdv.call("ItemSearch", options, function(err, result) {
@@ -13,7 +13,8 @@ exports.amazonBookSearch = function (searchString, response) {
             //response.end(JSON.stringify(result));
             
             var books = [];
-            
+            var exactMatchAlreadyAdded = false;
+
             //iterate Item, we only care about the top 5
             for(var index in result.Items.Item) {
                 var item = result.Items.Item[index];
@@ -21,8 +22,19 @@ exports.amazonBookSearch = function (searchString, response) {
                 //return the ASIN, but call it the ISBN - no, the ASIN/ISBN is not the correct 13 digit ISBN, use the EAN
                 //also return the Title from the ItemAttributes
                 
-                var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
-                books.push(JSONObj);
+                // only paperbacks, if there is a paperback (some books will be only hardback)?
+                // item.ItemAttributes.Binding == 'Paperback'
+                // FIXME many more improvements possible here
+                // actually maybe just include exact match only once?
+                // what we really need is - are we returning the same title twice, if so, is it just because binding is different - if so, ignore them
+                if(searchString.toUpperCase() === item.ItemAttributes.Title.toUpperCase() && !exactMatchAlreadyAdded) {
+                    var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
+                    books.push(JSONObj);
+                    exactMatchAlreadyAdded = true;
+                } else if (searchString.toUpperCase() != item.ItemAttributes.Title.toUpperCase()) {
+                    var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
+                    books.push(JSONObj);
+                }
             }
         
             response.end(JSON.stringify(books));
@@ -149,24 +161,32 @@ exports.amazonBookLookup = function (ASIN, response) {
     */
 }
 
-exports.amazonTopBooks = function (response) {
-    console.log('About to execute top book search!');
-    var options = {ResponseGroup: "TopSellers", BrowseNodeId : "1025612"};
-    
-    //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/ItemSearch.html
+exports.amazonBookLists = function (responseGroup, response) {
+    console.log('About to execute book list lookup!');
+    var options = {ResponseGroup: responseGroup, BrowseNodeId : "1025612"};
+
+    //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/TopSellers.html    
     prodAdv.call("BrowseNodeLookup", options, function(err, result) {
         if(err) {
-            console.error('Amazon Book Search Problem', err);
+            console.error('Amazon Book List Problem', err);
             response.end(null);
         } else {
-            //response.end(JSON.stringify(result));
             
             var books = [];
             var asinList = [];
 
-            //iterate , we only care about the top 5?
-            for(var index in result.BrowseNodes.BrowseNode.TopSellers.TopSeller) {
-                var item = result.BrowseNodes.BrowseNode.TopSellers.TopSeller[index];
+            var resultArray;
+            if(responseGroup == "TopSellers") {
+                resultArray = result.BrowseNodes.BrowseNode.TopSellers.TopSeller;
+            } else if(responseGroup == "NewReleases") {
+
+                // FIXME US locale only, so not currently returning anything for UK! not used, but I'm leaving the code here for now
+                resultArray = result.BrowseNodes.BrowseNode.NewReleases.NewRelease;
+            }
+
+            // usually 10 best sellers
+            for(var index in resultArray) {
+                var item = resultArray[index];
                 
                 var JSONObj = { "title":item.Title, "asin":item.ASIN };
                 books.push(JSONObj);
@@ -185,7 +205,7 @@ exports.amazonTopBooks = function (response) {
             exports.amazonBookLookupOnly(asinCommaList, function(result) { 
                 for(var i1 = 0; i1 < result.length; i1++) {
                     var url = result[i1].book.url;
-                    console.log('RETRIEVED URL ' + url);
+                    //console.log('RETRIEVED URL ' + url);
                     
                     for(var i2 = 0; i2 < books.length; i2++) {
                         if(books[i2].asin == result[i1].book.asin) {
@@ -195,8 +215,6 @@ exports.amazonTopBooks = function (response) {
                 }
                 response.end(JSON.stringify(books));
             });
-
-            //response.end(JSON.stringify(books));
         }
     })
 }
