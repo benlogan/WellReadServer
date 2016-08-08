@@ -4,6 +4,7 @@ var pg = require('pg');
 
 // my stuff
 var books = require('./books.js');
+var booksStatic = require('./booksStatic.js');
 var users = require('./users.js');
 var summaries = require('./summaries.js');
 
@@ -50,7 +51,7 @@ app.get('/bookLookup', function(request, response) {
 });
 app.get('/topBooks', function(request, response) {
     var queryData = url.parse(request.url, true).query;
-    books.amazonBookLists("TopSellers", response);
+    books.amazonBookLists(response);
 });
 app.get('/newBooks', function(request, response) {
     var queryData = url.parse(request.url, true).query;
@@ -67,6 +68,10 @@ app.get('/topSummaries', function(request, response) {
 app.get('/votesLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     summaries.voteSummaryFromDB(queryData.oAuthID, response);
+});
+app.get('/booksFeatured', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    booksStatic.featuredBooks(queryData.category, response);
 });
 
 // POST method route

@@ -43,7 +43,7 @@ exports.amazonBookSearch = function (searchString, response) {
 }
 
 exports.amazonBookLookupOnly = function(ASIN, callback) {
-    var options = {ResponseGroup: "ItemAttributes,Images,Large", ItemId : ASIN};
+    var options = {ResponseGroup: "ItemAttributes,AlternateVersions,Images,Large", ItemId : ASIN};
     //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
     
     prodAdv.call("ItemLookup", options, function(err, result) {
@@ -63,11 +63,24 @@ exports.amazonBookLookupOnly = function(ASIN, callback) {
                 for(var index in item) {
                     var aBook = item[index];
 
-                    var book = { 
+                    var newAsin;
+                    if(aBook.ItemAttributes.Binding === "Kindle Edition") {
+                        //SKIP ME?
+                        for(var i2 in aBook.AlternateVersions.AlternateVersion) {
+                            if(aBook.AlternateVersions.AlternateVersion[i2].Binding === "Paperback" || aBook.AlternateVersions.AlternateVersion[i2].Binding === "Hardback") {
+                                newAsin = aBook.AlternateVersions.AlternateVersion[i2].ASIN;
+                                //break; //deliberately taking the last one in the list for now, seems to maybe be more recent!? //FIXME not working and unreliable
+                            }
+                        }
+                    }
+                    var book = {
                         "book": {
                             "title":aBook.ItemAttributes.Title,
+                            "author":aBook.ItemAttributes.Author,
                             "url":aBook.DetailPageURL,
-                            "asin":aBook.ASIN
+                            "asin":aBook.ASIN,
+                            "newAsin":newAsin,
+                            "isbn":aBook.ItemAttributes.EAN
                         }
                     };
                     bookList.push(book);
@@ -80,7 +93,7 @@ exports.amazonBookLookupOnly = function(ASIN, callback) {
                 var book = { 
                     "book": {
                         "title":item.ItemAttributes.Title,
-                        "author":item.ItemAttributes.Author, 
+                        "author":item.ItemAttributes.Author,
                         "publisher":item.ItemAttributes.Publisher, 
                         "isbn":item.ItemAttributes.EAN,
                         "asin":ASIN,
@@ -161,9 +174,33 @@ exports.amazonBookLookup = function (ASIN, response) {
     */
 }
 
+// rather than using the TopSellers (see below), just do a regular search ranked by sales
+exports.amazonBookLists = function (response) {
+    console.log('About to execute book search for top books!');
+    var options = {SearchIndex: "Books", Keywords: "*", Availability: "Available", MerchantId: "Amazon", ResponseGroup: "ItemAttributes", Sort: "salesrank"};
+    
+    prodAdv.call("ItemSearch", options, function(err, result) {
+        if(err) {
+            console.error('Amazon Top Book Search Problem', err);
+            response.end(null);
+        } else {
+            var books = [];
+
+            for(var index in result.Items.Item) {
+                var item = result.Items.Item[index];
+                var JSONObj = { "title":item.ItemAttributes.Title, "asin":item.ASIN, "url":item.DetailPageURL, "author":item.ItemAttributes.Author, "isbn":item.ItemAttributes.EAN };
+                books.push(JSONObj);
+            }
+            response.end(JSON.stringify(books));
+        }
+    })
+}
+
+/*
+// could never get this version to really work - it's always returning kindle books which just mess everything up and then require translating to usable ISBN's etc.
 exports.amazonBookLists = function (responseGroup, response) {
     console.log('About to execute book list lookup!');
-    var options = {ResponseGroup: responseGroup, BrowseNodeId : "1025612"};
+    var options = {ResponseGroup: responseGroup, BrowseNodeId : "1025612"}; // can't seem to find a browse node for printed books! convert them later instead!
 
     //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/TopSellers.html    
     prodAdv.call("BrowseNodeLookup", options, function(err, result) {
@@ -204,12 +241,12 @@ exports.amazonBookLists = function (responseGroup, response) {
 
             exports.amazonBookLookupOnly(asinCommaList, function(result) { 
                 for(var i1 = 0; i1 < result.length; i1++) {
-                    var url = result[i1].book.url;
-                    //console.log('RETRIEVED URL ' + url);
-                    
                     for(var i2 = 0; i2 < books.length; i2++) {
                         if(books[i2].asin == result[i1].book.asin) {
-                            books[i2]['url'] = url;
+                            books[i2]['url'] = result[i1].book.url;
+                            books[i2]['isbn'] = result[i1].book.isbn;
+                            books[i2]['author'] = result[i1].book.author;
+                            books[i2]['asin'] = result[i1].book.newAsin;
                         }
                     }
                 }
@@ -217,7 +254,7 @@ exports.amazonBookLists = function (responseGroup, response) {
             });
         }
     })
-}
+}*/
 
 function googleBooksLookup() {
     //https://books.google.co.uk/books?id=wNPnl5zYA-cC&dq=freakonomics&hl=en&sa=X&ei=ewmdVYs4xuVSrNyBoAs&redir_esc=y
