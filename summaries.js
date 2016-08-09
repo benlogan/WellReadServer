@@ -1,6 +1,5 @@
 var pg = require('pg');
 
-// my stuff
 var books = require('./books.js');
 
 exports.summaryToDB = function (oAuthID, ISBN, text, response) {
@@ -122,45 +121,44 @@ exports.topSummaries = function (number, response) {
             return console.error('error running query', err);
         }
         var summary = [];
+        var asinList = [];
+
         var resultCount = result.rowCount;
-        // need recursion here rather than iteration, to connect the response to the final callback!
         if(resultCount > 0) {
           var counter = 0;
+          // need recursion here rather than iteration, to connect the response to the final callback?
           repeater(counter);
           function repeater(i) {
-              var isbn = result.rows[i].isbn;
-              var summaryCount = result.rows[i].summary_count;
-              
-              // can't call this too frequently, need a 1 second delay or AWS service can fail
-              // remember node is single thread and we don't want to block execution, needs to be a non-blocking sleep...
-              
-              // FIXME shouldn't need the AWS call here at all, should just have the book title and author in our DB!
-              // the 300ms is going to mean this takes 3000ms, minimum for a top 10 list - 3 seconds
-
-              setTimeout(function() {
-                books.amazonBookLookupOnly(isbn, function(result) {
-                    if(!result) {
-                      response.end();
-                    } else {
-                      var summaryJSON = {
-                        "asin":isbn,
-                        "title":result.book.title,
-                        "author":result.book.author,
-                        "summary_count":summaryCount
-                      }
-                      console.log('adding to top summaries the book : ' + summaryJSON.title);  
-                      summary.push(summaryJSON);
-                      counter++;
-                      if(counter < resultCount) {
-                        repeater(counter);
-                      } else {
-                        // we are finished
-                        response.end(JSON.stringify(summary));
-                      }
-                    }
-                });
-              }, 300);
+              var asin = result.rows[i].isbn;
+              asinList.push(asin);
+              counter++;
+              if(counter < resultCount) {
+                repeater(counter);
+              }
           }
+          var asinCommaList = '';
+          for(var asin in asinList) {
+              asinCommaList += asinList[asin] + ',';
+          }
+          asinCommaList = asinCommaList.substring(0, asinCommaList.length - 1);
+
+          books.amazonBookLookupOnly(asinCommaList, function(amazonResult) {
+            if(!amazonResult) {
+              response.end();
+            } else {
+              for(var i1 = 0; i1 < amazonResult.length; i1++) {
+                var summaryJSON = {
+                  "asin":amazonResult[i1].book.asin,
+                  "title":amazonResult[i1].book.title,
+                  "author":amazonResult[i1].book.author,
+                  "summary_count":result.rows[i1].summary_count // does this really matter, as long as the order is correct? include it anyway, but not sure we can trust the array lookup here, implies ordering...
+                }
+                console.log('adding to top summaries the book : ' + summaryJSON.title);  
+                summary.push(summaryJSON);
+              }
+              response.end(JSON.stringify(summary));
+            }
+          });
         } else {
             response.end();
         }
