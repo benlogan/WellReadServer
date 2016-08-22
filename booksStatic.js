@@ -17,6 +17,9 @@ exports.featuredBooks = function (bookCategory, response) {
         case "searched":
             parsedJSON = require('./data/searched.json');
             break;
+        case "satire":
+            parsedJSON = require('./data/satire.json');
+            break;
     }
 
     if(parsedJSON) {

@@ -27,13 +27,16 @@ exports.amazonBookSearch = function (searchString, response) {
                 // FIXME many more improvements possible here
                 // actually maybe just include exact match only once?
                 // what we really need is - are we returning the same title twice, if so, is it just because binding is different - if so, ignore them
-                if(searchString.toUpperCase() === item.ItemAttributes.Title.toUpperCase() && !exactMatchAlreadyAdded) {
-                    var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
-                    books.push(JSONObj);
-                    exactMatchAlreadyAdded = true;
-                } else if (searchString.toUpperCase() != item.ItemAttributes.Title.toUpperCase()) {
-                    var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
-                    books.push(JSONObj);
+                // we have to check there is actually a full response in the result first! There wouldn't be for 'Breakfast at Ti', for example.
+                if(item.ItemAttributes) {
+                    if(searchString.toUpperCase() === item.ItemAttributes.Title.toUpperCase() && !exactMatchAlreadyAdded) {
+                        var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
+                        books.push(JSONObj);
+                        exactMatchAlreadyAdded = true;
+                    } else if (searchString.toUpperCase() != item.ItemAttributes.Title.toUpperCase()) {
+                        var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
+                        books.push(JSONObj);
+                    }   
                 }
             }
         

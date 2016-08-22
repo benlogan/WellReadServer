@@ -53,10 +53,12 @@ app.get('/topBooks', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookLists(response);
 });
+/*
 app.get('/newBooks', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookLists("NewReleases", response);
 });
+*/
 app.get('/userLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     users.userLookup(queryData.oAuthToken, response);
