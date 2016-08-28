@@ -116,7 +116,7 @@ exports.topSummaries = function (number, response) {
         if(err) {
             return console.error('could not connect to postgres', err);
         }
-        client.query('select isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit ($1)', [number], function(err, result) {
+        client.query('SELECT isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit ($1)', [number], function(err, result) {
         if(err) {
             return console.error('error running query', err);
         }
