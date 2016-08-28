@@ -1,19 +1,29 @@
 #!/usr/bin/env node
 
+console.log('Starting Scripts : DB CLEAN DUPLICATES');
+
 var pg = require('pg');
 conString = process.env.DATABASE_URL;
 
+//console.log('DB CLEAN DUPLICATES : conString : ' + conString);
+
 var client = new pg.Client(conString);
+
+//console.log('DB CLEAN DUPLICATES : client setup');
+
 client.connect(function(err) {
   if(err) {
     console.error('could not connect to postgres', err);
   }
+  console.log('DB CLEAN DUPLICATES : about to execute DELETE');
   client.query('DELETE FROM public."SummaryText" WHERE id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (partition BY text ORDER BY id) AS rnum FROM public."SummaryText") t WHERE t.rnum > 1)', function(err, result) {
     if(err) {
-      onsole.error('error running query', err);
+      console.error('error running query', err);
     }
     client.end();
+
+    pg.end();
   });
 });
 
-process.exit();
+//process.exit();
