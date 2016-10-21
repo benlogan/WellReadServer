@@ -1,5 +1,7 @@
 # WellReadServer
 
+[![Build Status](https://travis-ci.org/benlogan1981/WellReadServer.svg?branch=master)](https://travis-ci.org/benlogan1981/WellReadServer)
+
 NodeJS server for the 'Well Read' app
 
 Heroku hosted, e.g.
