@@ -69,7 +69,10 @@ app.get('/topSummaries', function(request, response) {
 });
 app.get('/votesLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
-    summaries.voteSummaryFromDB(queryData.oAuthID, response);
+    // FIXME using a callback instead here, a bit neater and easier to unit test etc - needs to be rolled out elsewhere, now inconsistent
+    summaries.voteSummaryFromDB(queryData.oAuthID, function(resultJSON){
+        response.end(resultJSON);
+    });
 });
 app.get('/booksFeatured', function(request, response) {
     var queryData = url.parse(request.url, true).query;

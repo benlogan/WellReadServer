@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+
+// remove empty or missing synopsis
+console.log('Starting Scripts : DB CLEAN EMMPTY');
+
+var pg = require('pg');
+conString = process.env.DATABASE_URL;
+
+var client = new pg.Client(conString);
+
+client.connect(function(err) {
+  if(err) {
+    console.error('could not connect to postgres', err);
+  }
+  console.log('DB CLEAN EMPTY : about to execute DELETE');
+  
+  client.query('DELETE FROM public."SummaryText" WHERE text = null or text =\'\'', function(err, result) {
+    if(err) {
+      console.error('error running query', err);
+    }
+    console.log('DB CLEAN EMPTY : delete count : ' + result.rowCount);
+    client.end();
+
+    pg.end();
+  });
+});

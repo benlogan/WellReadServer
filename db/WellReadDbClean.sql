@@ -1,0 +1,1 @@
+﻿delete from public."SummaryText" where text = null or text = '';

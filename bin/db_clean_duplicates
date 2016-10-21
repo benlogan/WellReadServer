@@ -20,6 +20,7 @@ client.connect(function(err) {
     if(err) {
       console.error('error running query', err);
     }
+    console.log('DB CLEAN DUPLICATES : delete count : ' + result.rowCount);
     client.end();
 
     pg.end();

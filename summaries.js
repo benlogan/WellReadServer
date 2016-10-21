@@ -40,6 +40,8 @@ exports.voteSummaryToDB = function (oAuthID, summaryID, vote, response) {
     });
 }
 
+// rather than pass something in and forget about it,
+// pass a callback!
 exports.voteSummaryFromDB = function (oAuthID, response) {
     var client = new pg.Client(conString);
     client.connect(function(err) {
@@ -62,9 +64,12 @@ exports.voteSummaryFromDB = function (oAuthID, response) {
           votesJSON.push(voteJSON);
         }
 
-        response.end(JSON.stringify(votesJSON));
-
+        //response.end(JSON.stringify(votesJSON));
         client.end();
+
+        var jsonResponse = JSON.stringify(votesJSON);
+        console.log('JSON RESPONSE : ' + jsonResponse);
+        response(jsonResponse);
       });
     });
 }
