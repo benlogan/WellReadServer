@@ -42,6 +42,7 @@ exports.voteSummaryToDB = function (oAuthID, summaryID, vote, response) {
 
 // rather than pass something in and forget about it,
 // pass a callback!
+// FIXME works well, just needs to be rolled out elsewhere...
 exports.voteSummaryFromDB = function (oAuthID, response) {
     var client = new pg.Client(conString);
     client.connect(function(err) {
@@ -68,7 +69,7 @@ exports.voteSummaryFromDB = function (oAuthID, response) {
         client.end();
 
         var jsonResponse = JSON.stringify(votesJSON);
-        console.log('JSON RESPONSE : ' + jsonResponse);
+        //console.log('JSON RESPONSE : ' + jsonResponse);
         response(jsonResponse);
       });
     });
