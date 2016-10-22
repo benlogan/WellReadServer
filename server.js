@@ -11,6 +11,11 @@ var summaries = require('./summaries.js');
 var express = require('express');
 var app = express();
 
+app.get('/robots.txt', function (req, res) {
+    res.type('text/plain');
+    res.send("User-agent: *\nDisallow: /");
+});
+
 // https://github.com/livelycode/aws-lib
 aws = require('aws-lib'); // same as GLOBAL.
 
