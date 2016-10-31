@@ -150,7 +150,7 @@ exports.topSummaries = function (number, response) {
 
           books.amazonBookLookupOnly(asinCommaList, function(amazonResult) {
             if(!amazonResult) {
-              response.end();
+              response.status(404).send({ error: "Problem retrieving data from Amazon!" });
             } else {
               for(var i1 = 0; i1 < amazonResult.length; i1++) {
                 var summaryJSON = {

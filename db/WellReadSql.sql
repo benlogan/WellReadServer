@@ -53,3 +53,10 @@ select isbn, COUNT(text) as summary_count from public."SummaryText" group by isb
 
 --update public."SummaryText" SET isbn='9780141187761' where isbn = '014118776X';
 --delete from public."SummaryText" where isbn = '0349113467';
+
+
+
+--how many pages do we need for our sitemap?
+--select isbn from public."SummaryText" group by isbn;
+SELECT COUNT(*) FROM (SELECT DISTINCT isbn FROM public."SummaryText") AS temp;
+SELECT isbn AS ASIN FROM (SELECT DISTINCT isbn FROM public."SummaryText" where isbn != '') AS temp;

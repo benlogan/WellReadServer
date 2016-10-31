@@ -30,8 +30,10 @@ var port = process.env.PORT || 1337; // locally, use 1337
 app.use(function(req, res, next) {
     //res.setHeader('charset', 'utf-8')
     // CORS for local testing only?
-    res.writeHead(200, {'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json'});
-    //res.writeHead(200, {'Content-Type': 'application/json'});
+    //res.writeHead(200, {'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json'});
+    // we don't want to set the response status yet!
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Content-Type", "application/json");
     next();
 });
 

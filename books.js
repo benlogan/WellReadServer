@@ -45,77 +45,94 @@ exports.amazonBookSearch = function (searchString, response) {
     })
 }
 
+// default cache life is 10 minutes, I think!
+const NodeCache = require( "node-cache" );
+const myCache = new NodeCache();
+
 exports.amazonBookLookupOnly = function(ASIN, callback) {
     var options = {ResponseGroup: "ItemAttributes,AlternateVersions,Images,Large", ItemId : ASIN};
     //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
     
-    prodAdv.call("ItemLookup", options, function(err, result) {
-        if(err) {
-            console.error('Amazon Book Lookup Problem', err);
-            callback(null);
-        } else {
-            var item = result.Items.Item;
+    // FIXME - 2 cache checks, a bit wasteful etc
+    var cacheValueBook = myCache.get( "book_" + ASIN);
+    var cacheValueList = myCache.get( "bookList_" + ASIN);
+    if(cacheValueBook != undefined) {
+        console.log( 'found book in cache!' );
+        //console.log( value );
+        callback(cacheValueBook);
+    } else if (cacheValueList != undefined) {
+        console.log( 'found book list in cache!' );
+        //console.log( value );
+        callback(cacheValueList);
+    } else {
+        // go to amazon!
 
-            var imageURL = null;
-            if(item && item.LargeImage) {
-                imageURL = item.LargeImage.URL
-            }
+        prodAdv.call("ItemLookup", options, function(err, result) {
+            if(err) {
+                console.error('Amazon Book Lookup Problem', err);
+                callback(null);
+            } else {
+                var item = result.Items.Item;
 
-            if(Array.isArray(item)) {
-                var bookList = [];
-                for(var index in item) {
-                    var aBook = item[index];
+                var imageURL = null;
+                if(item && item.LargeImage) {
+                    imageURL = item.LargeImage.URL
+                }
 
-                    var newAsin;
-                    if(aBook.ItemAttributes.Binding === "Kindle Edition") {
-                        //SKIP ME?
-                        for(var i2 in aBook.AlternateVersions.AlternateVersion) {
-                            if(aBook.AlternateVersions.AlternateVersion[i2].Binding === "Paperback" || aBook.AlternateVersions.AlternateVersion[i2].Binding === "Hardback") {
-                                newAsin = aBook.AlternateVersions.AlternateVersion[i2].ASIN;
-                                //break; //deliberately taking the last one in the list for now, seems to maybe be more recent!? //FIXME not working and unreliable
+                if(Array.isArray(item)) {
+                    var bookList = [];
+                    for(var index in item) {
+                        var aBook = item[index];
+
+                        var newAsin;
+                        if(aBook.ItemAttributes.Binding === "Kindle Edition") {
+                            //SKIP ME?
+                            for(var i2 in aBook.AlternateVersions.AlternateVersion) {
+                                if(aBook.AlternateVersions.AlternateVersion[i2].Binding === "Paperback" || aBook.AlternateVersions.AlternateVersion[i2].Binding === "Hardback") {
+                                    newAsin = aBook.AlternateVersions.AlternateVersion[i2].ASIN;
+                                    //break; //deliberately taking the last one in the list for now, seems to maybe be more recent!? //FIXME not working and unreliable
+                                }
                             }
                         }
+                        var book = {
+                            "book": {
+                                "title":aBook.ItemAttributes.Title,
+                                "author":aBook.ItemAttributes.Author,
+                                "url":aBook.DetailPageURL,
+                                "asin":aBook.ASIN,
+                                "newAsin":newAsin,
+                                "isbn":aBook.ItemAttributes.EAN
+                            }
+                        };
+                        bookList.push(book);
                     }
-                    var book = {
-                        "book": {
-                            "title":aBook.ItemAttributes.Title,
-                            "author":aBook.ItemAttributes.Author,
-                            "url":aBook.DetailPageURL,
-                            "asin":aBook.ASIN,
-                            "newAsin":newAsin,
-                            "isbn":aBook.ItemAttributes.EAN
-                        }
-                    };
-                    bookList.push(book);
+                    myCache.set( "bookList_" + ASIN, bookList);
+                    callback(bookList);
                 }
-                callback(bookList);
-            }
-            else {
-
-            if(item) {
-                var book = { 
-                    "book": {
-                        "title":item.ItemAttributes.Title,
-                        "author":item.ItemAttributes.Author,
-                        "publisher":item.ItemAttributes.Publisher, 
-                        "isbn":item.ItemAttributes.EAN,
-                        "asin":ASIN,
-                        "image":imageURL
+                else {
+                    if(item) {
+                        var book = { 
+                            "book": {
+                                "title":item.ItemAttributes.Title,
+                                "author":item.ItemAttributes.Author,
+                                "publisher":item.ItemAttributes.Publisher, 
+                                "isbn":item.ItemAttributes.EAN,
+                                "asin":ASIN,
+                                "image":imageURL
+                            }
+                        };
+                    } else {
+                        var book = {
+                            "book": {
+                                "title":'Book not found!'
+                            }
+                        };
                     }
-                };
-            } else {
-                var book = {
-                    "book": {
-                        "title":'Book not found!'
-                    }
-                };
+                }
+                callback(book);
             }
-
-            }
-            
-            callback(book);
-        }
-    })
+        })
+    }
 }
 
 exports.amazonBookLookup = function (ASIN, response) {
