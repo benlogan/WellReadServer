@@ -68,7 +68,7 @@ app.get('/newBooks', function(request, response) {
 */
 app.get('/userLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
-    users.userLookup(queryData.oAuthToken, response);
+    users.userLookup(queryData.oAuthID, response);
 });
 // Most Read! (well, most synopsis's!)
 app.get('/topSummaries', function(request, response) {

@@ -1,12 +1,12 @@
 var pg = require('pg');
 
-exports.userLookup = function (oAuthToken, response) {
+exports.userLookup = function (oAuthID, response) {
     var client = new pg.Client(conString);
     client.connect(function(err) {
         if(err) {
             return console.error('could not connect to postgres', err);
         }
-        client.query('SELECT oAuthID, name from public."Users" where oAuthToken = ($1)', [oAuthToken], function(err, result) {
+        client.query('SELECT oAuthID, name from public."Users" where oAuthId = ($1)', [oAuthID], function(err, result) {
         if(err) {
           return console.error('error running query', err);
         }
@@ -15,7 +15,7 @@ exports.userLookup = function (oAuthToken, response) {
                 "oAuthID":result.rows[0].oauthid,
                 "name":result.rows[0].name
             }
-            console.log("Found User! oAuthID: " + user.oAuthID + " name: " + user.name);
+            console.log("Found User! oAuthID: " + oAuthID + " name: " + user.name);
         }
 
         response.end(JSON.stringify(user));
