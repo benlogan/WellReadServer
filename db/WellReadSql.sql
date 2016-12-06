@@ -32,31 +32,30 @@
 select t.id, t.text, u.name, COALESCE(SUM(v.vote),0) as votes from public."SummaryText" t JOIN public."Users" u ON t.oauthid=u.oauthid LEFT OUTER JOIN public."SummaryVotes" v ON t.id=v.summaryid where t.ISBN='1742200524' group by t.id, u.name order by votes DESC, id;
 
 
-
---top 10 books (based on number of summaries and votes?)
---select isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit 10;
-
-
-
-
 select summaryid, SUM(vote) from public."SummaryVotes" where oauthid = '160674689' group by summaryid;
-
-
-
---select * from public."SummaryText";
---select isbn, count(isbn) as summaryTotals from public."SummaryText" group by isbn order by summaryTotals DESC limit 5;
---or, I'd already written this!
-select isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit 5;
-
-
 
 
 --update public."SummaryText" SET isbn='9780141187761' where isbn = '014118776X';
 --delete from public."SummaryText" where isbn = '0349113467';
 
 
-
 --how many pages do we need for our sitemap?
 --select isbn from public."SummaryText" group by isbn;
 SELECT COUNT(*) FROM (SELECT DISTINCT isbn FROM public."SummaryText") AS temp;
 SELECT isbn AS ASIN FROM (SELECT DISTINCT isbn FROM public."SummaryText" where isbn != '') AS temp;
+
+--Most Read!
+--top 10 books (based on number of summaries and eventually votes?)
+--SELECT isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit 10;
+
+--Most Recent! (only count a book once, so discard older reviews)
+--SELECT isbn, text, datetime from public."SummaryText" order by datetime DESC limit 20;
+--SELECT DISTINCT ON (isbn) isbn, text, datetime from public."SummaryText" order by isbn, datetime;
+SELECT * from (SELECT DISTINCT ON (isbn) isbn, text, datetime from public."SummaryText" order by isbn, datetime DESC) s order by datetime DESC limit 10;
+
+-- find duplicate users!
+--SELECT oauthid from public."Users" group by oauthid having count(*) > 1;
+-- remove a user when I don't have a primary key!
+--delete from public."Users" where datetime = '2016-12-01 15:20:54.003206+00';
+--SELECT * from public."Users";
+--delete from public."Users" where oauthid = '999';

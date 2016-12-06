@@ -100,13 +100,13 @@ exports.summaryFromDB = function (ISBN, response, bookJSON) {
                 "text":result.rows[i].text,
                 "name":result.rows[i].name,
                 "votes":result.rows[i].votes
-            }           
+            }
             summary.push(summaryJSON);
         }
 
         //bookJSON.summary = summaryJSON;
         if(summary.length > 0) {
-            bookJSON.summaryList = summary;    
+            bookJSON.summaryList = summary;
         }
 
         response.end(JSON.stringify(bookJSON));
@@ -116,59 +116,132 @@ exports.summaryFromDB = function (ISBN, response, bookJSON) {
     });
 }
 
+// default cache life is 10 minutes, I think!
+const NodeCache = require( "node-cache" );
+const myCache = new NodeCache({ checkperiod: 3600 }); // cache for an hour, this is infrequently changing unimportant stuff
+
 exports.topSummaries = function (number, response) {
-    var client = new pg.Client(conString);
-    client.connect(function(err) {
-        if(err) {
-            return console.error('could not connect to postgres', err);
-        }
-        client.query('SELECT isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit ($1)', [number], function(err, result) {
-        if(err) {
-            return console.error('error running query', err);
-        }
-        var summary = [];
-        var asinList = [];
-
-        var resultCount = result.rowCount;
-        if(resultCount > 0) {
-          var counter = 0;
-          // need recursion here rather than iteration, to connect the response to the final callback?
-          repeater(counter);
-          function repeater(i) {
-              var asin = result.rows[i].isbn;
-              asinList.push(asin);
-              counter++;
-              if(counter < resultCount) {
-                repeater(counter);
-              }
+    var cacheValue = myCache.get("topSummaries");
+    if(cacheValue != undefined) {
+      response.end(JSON.stringify(cacheValue));
+    } else {
+        var client = new pg.Client(conString);
+        client.connect(function(err) {
+          if(err) {
+              return console.error('could not connect to postgres', err);
           }
-          var asinCommaList = '';
-          for(var asin in asinList) {
-              asinCommaList += asinList[asin] + ',';
+          client.query('SELECT isbn, COUNT(text) as summary_count from public."SummaryText" group by isbn order by summary_count DESC limit ($1)', [number], function(err, result) {
+          if(err) {
+              return console.error('error running query', err);
           }
-          asinCommaList = asinCommaList.substring(0, asinCommaList.length - 1);
+          var summary = [];
+          var asinList = [];
 
-          books.amazonBookLookupOnly(asinCommaList, function(amazonResult) {
-            if(!amazonResult) {
-              response.status(404).send({ error: "Problem retrieving data from Amazon!" });
-            } else {
-              for(var i1 = 0; i1 < amazonResult.length; i1++) {
-                var summaryJSON = {
-                  "asin":amazonResult[i1].book.asin,
-                  "title":amazonResult[i1].book.title,
-                  "author":amazonResult[i1].book.author,
-                  "summary_count":result.rows[i1].summary_count // does this really matter, as long as the order is correct? include it anyway, but not sure we can trust the array lookup here, implies ordering...
+          var resultCount = result.rowCount;
+          if(resultCount > 0) {
+            var counter = 0;
+            // need recursion here rather than iteration, to connect the response to the final callback?
+            repeater(counter);
+            function repeater(i) {
+                var asin = result.rows[i].isbn;
+                asinList.push(asin);
+                counter++;
+                if(counter < resultCount) {
+                  repeater(counter);
                 }
-                console.log('adding to top summaries the book : ' + summaryJSON.title);  
-                summary.push(summaryJSON);
-              }
-              response.end(JSON.stringify(summary));
             }
+            var asinCommaList = '';
+            for(var asin in asinList) {
+                asinCommaList += asinList[asin] + ',';
+            }
+            asinCommaList = asinCommaList.substring(0, asinCommaList.length - 1);
+
+            books.amazonBookLookupOnly(asinCommaList, function(amazonResult) {
+              if(!amazonResult) {
+                response.status(404).send({ error: "Problem retrieving data from Amazon!" });
+              } else {
+                for(var i1 = 0; i1 < amazonResult.length; i1++) {
+                  var summaryJSON = {
+                    "asin":amazonResult[i1].book.asin,
+                    "title":amazonResult[i1].book.title,
+                    "author":amazonResult[i1].book.author,
+                    "summary_count":result.rows[i1].summary_count // does this really matter, as long as the order is correct? include it anyway, but not sure we can trust the array lookup here, implies ordering...
+                  }
+                  console.log('Adding to Top Summaries. Book : ' + summaryJSON.title);
+                  summary.push(summaryJSON);
+                }
+                myCache.set("topSummaries", summary);
+                response.end(JSON.stringify(summary));
+              }
+            });
+          } else {
+              response.end();
+          }
+          client.end();
           });
-        } else {
-            response.end();
-        }
-        client.end();
         });
-    });
+    }
+}
+
+exports.mostRecent = function (number, response) {
+    var cacheValue = myCache.get("mostRecent");
+    if(cacheValue != undefined) {
+      response.end(JSON.stringify(cacheValue));
+    } else {
+      var client = new pg.Client(conString);
+      client.connect(function(err) {
+          if(err) {
+              return console.error('could not connect to postgres', err);
+          }
+          client.query('SELECT * from (SELECT DISTINCT ON (isbn) isbn, text, datetime from public."SummaryText" order by isbn, datetime DESC) s order by datetime DESC limit ($1)', [number], function(err, result) {
+          if(err) {
+              return console.error('error running query', err);
+          }
+          var summary = [];
+          var asinList = [];
+
+          var resultCount = result.rowCount;
+          if(resultCount > 0) {
+            var counter = 0;
+            // need recursion here rather than iteration, to connect the response to the final callback?
+            repeater(counter);
+            function repeater(i) {
+                var asin = result.rows[i].isbn;
+                asinList.push(asin);
+                counter++;
+                if(counter < resultCount) {
+                  repeater(counter);
+                }
+            }
+            var asinCommaList = '';
+            for(var asin in asinList) {
+                asinCommaList += asinList[asin] + ',';
+            }
+            asinCommaList = asinCommaList.substring(0, asinCommaList.length - 1);
+
+            books.amazonBookLookupOnly(asinCommaList, function(amazonResult) {
+              if(!amazonResult) {
+                response.status(404).send({ error: "Problem retrieving data from Amazon!" });
+              } else {
+                for(var i1 = 0; i1 < amazonResult.length; i1++) {
+                  var summaryJSON = {
+                    "asin":amazonResult[i1].book.asin,
+                    "title":amazonResult[i1].book.title,
+                    "author":amazonResult[i1].book.author,
+                    "datetime":result.rows[i1].datetime
+                  }
+                  console.log('Adding to Most Recent. Book : ' + summaryJSON.title);
+                  summary.push(summaryJSON);
+                }
+                myCache.set("mostRecent", summary);
+                response.end(JSON.stringify(summary));
+              }
+            });
+          } else {
+              response.end();
+          }
+          client.end();
+          });
+        });
+    }
 }

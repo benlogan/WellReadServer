@@ -25,7 +25,7 @@ exports.userLookup = function (oAuthToken, response) {
     });
 }
 
-exports.newUser = function (oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret) {
+exports.newUser = function (oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret, screenName) {
     console.log('newUser oAuthID : ' + oAuthID + ' name : ' + name + ' email : ' + email);
     var client = new pg.Client(conString);
     client.connect(function(err) {
@@ -33,7 +33,7 @@ exports.newUser = function (oAuthID, oAuthMethod, name, email, oAuthToken, oAuth
             return console.error('could not connect to postgres', err);
         }
         console.log('newUser about to execute db insert');
-        client.query('INSERT INTO public."Users" (oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret, datetime) VALUES (($1),($2),($3),($4),($5),($6), now())', [oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret], function(err, result) {
+        client.query('INSERT INTO public."Users" (oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret, datetime, screenname) VALUES (($1),($2),($3),($4),($5),($6),now(),($7))', [oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret, screenName], function(err, result) {
             if(err) {
                 return console.error('error running query', err);
             }

@@ -1,6 +1,6 @@
 var http = require('http'); //require the 'http' module
 var url = require('url'); // just for parsing request
-var pg = require('pg'); 
+var pg = require('pg');
 
 // my stuff
 var books = require('./books.js');
@@ -70,9 +70,15 @@ app.get('/userLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     users.userLookup(queryData.oAuthToken, response);
 });
+// Most Read! (well, most synopsis's!)
 app.get('/topSummaries', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     summaries.topSummaries(queryData.number, response);
+});
+// Most Recent!
+app.get('/mostRecent', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    summaries.mostRecent(queryData.number, response);
 });
 app.get('/votesLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
@@ -96,13 +102,13 @@ app.post('/writeSummary', function (request, response) {
     request.on('end', function () {
         //console.log("Body: " + body);
         // body text looks like; "summary=just another summary test after star wars&isbn=1742207863"
-        
+
         var parsedResponse = body.split('&');
         var oAuthID = parsedResponse[0].split('=')[1];
         var summaryText = decodeURIComponent(parsedResponse[1].substring(parsedResponse[1].indexOf('=') + 1));
         //var summaryText = parsedResponse[1].split(/=(.+)?/)[1]; // important, split only on first '=', otherwise you will ignore that character and everything after it, if it occurs in the body of the posted text! that reg expression can't be trusted!
         var ISBN = parsedResponse[2].split('=')[1];
-        
+
         summaries.summaryToDB(oAuthID, ISBN, summaryText, response);
 
         //async db call here is fine - actually it's not, hence have completed the response after the db inset in this case - to allow for a page refresh
@@ -119,12 +125,12 @@ app.post('/voteSummary', function (request, response) {
         body += data;
     });
     request.on('end', function () {
-        
+
         var parsedResponse = body.split('&');
         var oAuthID = parsedResponse[0].split('=')[1];
         var summaryID = parsedResponse[1].split('=')[1];
         var upDown = parsedResponse[2].split('=')[1];
-        
+
         summaries.voteSummaryToDB(oAuthID, summaryID, upDown, response);
 
         //async db call here is fine
@@ -147,7 +153,10 @@ app.post('/writeUser', function (request, response) {
         var email = parsedResponse[3].split('=')[1];
         var oAuthToken = parsedResponse[4].split('=')[1];
         var oAuthTokenSecret = parsedResponse[5].split('=')[1];
-        users.newUser(oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret);
+        if(parsedResponse[6] != null) {
+          var screenName = parsedResponse[6].split('=')[1];
+        }
+        users.newUser(oAuthID, oAuthMethod, name, email, oAuthToken, oAuthTokenSecret, screenName);
 
         //async db call here is fine
 
