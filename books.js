@@ -1,9 +1,12 @@
 var summaries = require('./summaries.js');
 
+var request = require('request'); // for NYT call only at present
+
 exports.amazonBookSearch = function (searchString, response) {
+    //searchString = encodeURIComponent(searchString);
     console.log('About to execute book search for : ' + searchString);
     var options = {SearchIndex: "Books", Keywords: searchString, Availability: "Available", MerchantId: "Amazon", ResponseGroup: "ItemAttributes"};
-    
+
     //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/ItemSearch.html
     prodAdv.call("ItemSearch", options, function(err, result) {
         if(err) {
@@ -11,17 +14,19 @@ exports.amazonBookSearch = function (searchString, response) {
             response.end(null);
         } else {
             //response.end(JSON.stringify(result));
-            
+
+            //console.log('Amazon Book Search Results Size: ' + result.Items.Item.length);
+
             var books = [];
             var exactMatchAlreadyAdded = false;
 
             //iterate Item, we only care about the top 5
             for(var index in result.Items.Item) {
                 var item = result.Items.Item[index];
-                
+
                 //return the ASIN, but call it the ISBN - no, the ASIN/ISBN is not the correct 13 digit ISBN, use the EAN
                 //also return the Title from the ItemAttributes
-                
+
                 // only paperbacks, if there is a paperback (some books will be only hardback)?
                 // item.ItemAttributes.Binding == 'Paperback'
                 // FIXME many more improvements possible here
@@ -36,10 +41,10 @@ exports.amazonBookSearch = function (searchString, response) {
                     } else if (searchString.toUpperCase() != item.ItemAttributes.Title.toUpperCase()) {
                         var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
                         books.push(JSONObj);
-                    }   
+                    }
                 }
             }
-        
+
             response.end(JSON.stringify(books));
         }
     })
@@ -52,7 +57,7 @@ const myCache = new NodeCache();
 exports.amazonBookLookupOnly = function(ASIN, callback) {
     var options = {ResponseGroup: "ItemAttributes,AlternateVersions,Images,Large", ItemId : ASIN};
     //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
-    
+
     // FIXME - 2 cache checks, a bit wasteful etc
     var cacheValueBook = myCache.get( "book_" + ASIN);
     var cacheValueList = myCache.get( "bookList_" + ASIN);
@@ -111,11 +116,11 @@ exports.amazonBookLookupOnly = function(ASIN, callback) {
                 }
                 else {
                     if(item) {
-                        var book = { 
+                        var book = {
                             "book": {
                                 "title":item.ItemAttributes.Title,
                                 "author":item.ItemAttributes.Author,
-                                "publisher":item.ItemAttributes.Publisher, 
+                                "publisher":item.ItemAttributes.Publisher,
                                 "isbn":item.ItemAttributes.EAN,
                                 "asin":ASIN,
                                 "image":imageURL
@@ -142,18 +147,18 @@ exports.amazonBookLookup = function (ASIN, response) {
     //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
     var options = {ResponseGroup: "ItemAttributes,Images", ItemId : ASIN};
     //Large,EditorialReview don't think this was needed?
-    
+
     prodAdv.call("ItemLookup", options, function(err, result) {
         if(err) {
             console.error('Amazon Book Lookup Problem', err);
         }
-        
+
         //response.end(JSON.stringify(result));
-        
-        // iterate Item, we only care about the first (there should only ever be one) 
+
+        // iterate Item, we only care about the first (there should only ever be one)
         // now that we aren't using a unique amazon ID there won't only be one! use the first for now...
         var item = result.Items.Item;
-        
+
         // looks like some books, e.g. 'Lonely Planet France 9th Ed'
         // dont have an image, resulting in an app crash when trying to read image URL here!
         var imageURL = null;
@@ -161,25 +166,25 @@ exports.amazonBookLookup = function (ASIN, response) {
             imageURL = item.LargeImage.URL
         }
 
-        var JSONObj = 
-                { 
+        var JSONObj =
+                {
                     "book": {
                         "urlAmazon":item.DetailPageURL,
                         "title":item.ItemAttributes.Title,
-                        "author":item.ItemAttributes.Author, 
-                        "publisher":item.ItemAttributes.Publisher, 
+                        "author":item.ItemAttributes.Author,
+                        "publisher":item.ItemAttributes.Publisher,
                         "isbn":item.ItemAttributes.EAN,
                         "asin":ASIN,
                         "image":imageURL
                 }};
-                /*    
+                /*
                     },
                     "summary":{
                         "text":summaryFromDB(item.ItemAttributes.ISBN)
                     }
                 };
                 */
-    
+
         //"text":summaryFromDB(item.ItemAttributes.ISBN);
 
         //response.end(JSON.stringify(JSONObj));
@@ -187,7 +192,7 @@ exports.amazonBookLookup = function (ASIN, response) {
         //response.write(JSON.stringify(JSONObj));
         summaries.summaryFromDB(ASIN, response, JSONObj);
     })
-    
+
     // so, response used to look like this!
     /*
     {"book": {"title":"Lonely Planet Argentina (Travel Guide)","author":["Lonely Planet","Sandra Bao","Gregor Clark","Carolyn McCarthy","Andy Symington","Lucas Vidgen"],"publisher":"Lonely Planet","isbn":"1742207863","image":"http://ecx.images-amazon.com/images/I/51J4ZfgklaL.jpg"},"summary": {"text":"first argentina book review"},"summary": {"text":"second argentina book review!"}}
@@ -198,7 +203,7 @@ exports.amazonBookLookup = function (ASIN, response) {
 exports.amazonBookLists = function (response) {
     console.log('About to execute book search for top books!');
     var options = {SearchIndex: "Books", Keywords: "*", Availability: "Available", MerchantId: "Amazon", ResponseGroup: "ItemAttributes", Sort: "salesrank"};
-    
+
     prodAdv.call("ItemSearch", options, function(err, result) {
         if(err) {
             console.error('Amazon Top Book Search Problem', err);
@@ -222,13 +227,13 @@ exports.amazonBookLists = function (responseGroup, response) {
     console.log('About to execute book list lookup!');
     var options = {ResponseGroup: responseGroup, BrowseNodeId : "1025612"}; // can't seem to find a browse node for printed books! convert them later instead!
 
-    //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/TopSellers.html    
+    //http://docs.aws.amazon.com/AWSECommerceService/latest/DG/TopSellers.html
     prodAdv.call("BrowseNodeLookup", options, function(err, result) {
         if(err) {
             console.error('Amazon Book List Problem', err);
             response.end(null);
         } else {
-            
+
             var books = [];
             var asinList = [];
 
@@ -244,7 +249,7 @@ exports.amazonBookLists = function (responseGroup, response) {
             // usually 10 best sellers
             for(var index in resultArray) {
                 var item = resultArray[index];
-                
+
                 var JSONObj = { "title":item.Title, "asin":item.ASIN };
                 books.push(JSONObj);
 
@@ -252,14 +257,14 @@ exports.amazonBookLists = function (responseGroup, response) {
                 // those URL's can then be used by the scraper to retrieve a first synopsis (and editorial reviews etc)
                 asinList.push(item.ASIN);
             }
-        
+
             var asinCommaList = '';
             for(var asin in asinList) {
                 asinCommaList += asinList[asin] + ',';
             }
             asinCommaList = asinCommaList.substring(0, asinCommaList.length - 1);
 
-            exports.amazonBookLookupOnly(asinCommaList, function(result) { 
+            exports.amazonBookLookupOnly(asinCommaList, function(result) {
                 for(var i1 = 0; i1 < result.length; i1++) {
                     for(var i2 = 0; i2 < books.length; i2++) {
                         if(books[i2].asin == result[i1].book.asin) {
@@ -276,18 +281,44 @@ exports.amazonBookLists = function (responseGroup, response) {
     })
 }*/
 
+exports.nytBookLists = function (response) {
+    console.log('About to execute book search for top books on NYT!');
+
+    request.get({
+      url: "https://api.nytimes.com/svc/books/v3/lists.json",
+      qs: {
+        'api-key': "35ae9d527f0848a6843b3cef66afb73b",
+        'list': "combined-print-and-e-book-nonfiction"
+      },
+    }, function(err, resp, body) {
+      body = JSON.parse(body);
+
+      var books = [];
+
+      for(var i = 0; i < 10; i++) {
+        var bookDetails = body.results[i].book_details[0];
+        // I 'think' that primary_isbn10 is usually the ASIN!
+        var bookTitle = bookDetails.title.charAt(0).toUpperCase() + bookDetails.title.slice(1).toLowerCase();
+        var JSONObj = { "title":bookTitle, "asin":bookDetails.primary_isbn10, "url":body.results[i].amazon_product_url, "author":bookDetails.author, "isbn":bookDetails.primary_isbn13 };
+        books.push(JSONObj);
+      }
+
+      response.end(JSON.stringify(books));
+    });
+}
+
 function googleBooksLookup() {
     //https://books.google.co.uk/books?id=wNPnl5zYA-cC&dq=freakonomics&hl=en&sa=X&ei=ewmdVYs4xuVSrNyBoAs&redir_esc=y
-    
+
     // api call; https://www.googleapis.com/books/v1/volumes/wNPnl5zYA-cC
     // need the equivelant by ISBN - you have to search instead;
     // https://www.googleapis.com/books/v1/volumes?q=isbn:0062132342
-    
+
     // interestingly this has a 'description' field which could be used for the first entry?
-    
+
     // JSON path; description
     //volumeInfo.description
-    
+
     // JSON path; image
     //volumeInfo.imageLinks.thumbnail
 }
