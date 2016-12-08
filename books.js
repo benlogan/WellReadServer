@@ -158,8 +158,6 @@ exports.amazonBookLookup = function (ASIN, response) {
             console.error('Amazon Book Lookup Problem', err);
         }
 
-        //response.end(JSON.stringify(result));
-
         // iterate Item, we only care about the first (there should only ever be one)
         // now that we aren't using a unique amazon ID there won't only be one! use the first for now...
         var item = result.Items.Item;
@@ -171,37 +169,23 @@ exports.amazonBookLookup = function (ASIN, response) {
             imageURL = item.LargeImage.URL
         }
 
-        var JSONObj =
-                {
-                    "book": {
-                        "urlAmazon":item.DetailPageURL,
-                        "title":item.ItemAttributes.Title,
-                        "author":item.ItemAttributes.Author,
-                        "publisher":item.ItemAttributes.Publisher,
-                        "isbn":item.ItemAttributes.EAN,
-                        "asin":ASIN,
-                        "image":imageURL
-                }};
-                /*
-                    },
-                    "summary":{
-                        "text":summaryFromDB(item.ItemAttributes.ISBN)
-                    }
-                };
-                */
-
-        //"text":summaryFromDB(item.ItemAttributes.ISBN);
-
-        //response.end(JSON.stringify(JSONObj));
-
-        //response.write(JSON.stringify(JSONObj));
-        summaries.summaryFromDB(ASIN, response, JSONObj);
+        if(item) {
+          var JSONObj =
+          {
+              "book": {
+                  "urlAmazon":item.DetailPageURL,
+                  "title":item.ItemAttributes.Title,
+                  "author":item.ItemAttributes.Author,
+                  "publisher":item.ItemAttributes.Publisher,
+                  "isbn":item.ItemAttributes.EAN,
+                  "asin":ASIN,
+                  "image":imageURL
+          }};
+          summaries.summaryFromDB(ASIN, response, JSONObj);
+        } else {
+          response.end(null);
+        }
     })
-
-    // so, response used to look like this!
-    /*
-    {"book": {"title":"Lonely Planet Argentina (Travel Guide)","author":["Lonely Planet","Sandra Bao","Gregor Clark","Carolyn McCarthy","Andy Symington","Lucas Vidgen"],"publisher":"Lonely Planet","isbn":"1742207863","image":"http://ecx.images-amazon.com/images/I/51J4ZfgklaL.jpg"},"summary": {"text":"first argentina book review"},"summary": {"text":"second argentina book review!"}}
-    */
 }
 
 // rather than using the TopSellers (see below), just do a regular search ranked by sales
