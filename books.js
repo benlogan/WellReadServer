@@ -2,6 +2,9 @@ var summaries = require('./summaries.js');
 
 var request = require('request'); // for NYT call only at present
 
+const NodeCache = require( "node-cache" );
+const myCache = new NodeCache({ checkperiod: 3600 }); // 1hr, not changing frequently
+
 exports.amazonBookSearch = function (searchString, response) {
     //searchString = encodeURIComponent(searchString);
     console.log('About to execute book search for : ' + searchString);
@@ -50,28 +53,21 @@ exports.amazonBookSearch = function (searchString, response) {
     })
 }
 
-// default cache life is 10 minutes, I think!
-const NodeCache = require( "node-cache" );
-const myCache = new NodeCache();
-
 exports.amazonBookLookupOnly = function(ASIN, callback) {
     var options = {ResponseGroup: "ItemAttributes,AlternateVersions,Images,Large", ItemId : ASIN};
     //var options = {ResponseGroup: "ItemAttributes,Images", IdType : "EAN", SearchIndex : "Books", ItemId : ISBN};
 
     // FIXME - 2 cache checks, a bit wasteful etc
-    var cacheValueBook = myCache.get( "book_" + ASIN);
-    var cacheValueList = myCache.get( "bookList_" + ASIN);
+    var cacheValueBook = myCache.get("book_" + ASIN);
+    var cacheValueList = myCache.get("bookList_" + ASIN);
     if(cacheValueBook != undefined) {
-        console.log( 'found book in cache!' );
-        //console.log( value );
+        console.log('found book in cache!');
         callback(cacheValueBook);
     } else if (cacheValueList != undefined) {
-        console.log( 'found book list in cache!' );
-        //console.log( value );
+        console.log('found book list in cache!');
         callback(cacheValueList);
     } else {
         // go to amazon!
-
         prodAdv.call("ItemLookup", options, function(err, result) {
             if(err) {
                 console.error('Amazon Book Lookup Problem', err);
@@ -111,7 +107,7 @@ exports.amazonBookLookupOnly = function(ASIN, callback) {
                         };
                         bookList.push(book);
                     }
-                    myCache.set( "bookList_" + ASIN, bookList);
+                    myCache.set("bookList_" + ASIN, bookList);
                     callback(bookList);
                 }
                 else {
@@ -202,23 +198,30 @@ exports.amazonBookLookup = function (ASIN, response) {
 // rather than using the TopSellers (see below), just do a regular search ranked by sales
 exports.amazonBookLists = function (response) {
     console.log('About to execute book search for top books!');
-    var options = {SearchIndex: "Books", Keywords: "*", Availability: "Available", MerchantId: "Amazon", ResponseGroup: "ItemAttributes", Sort: "salesrank"};
 
-    prodAdv.call("ItemSearch", options, function(err, result) {
-        if(err) {
-            console.error('Amazon Top Book Search Problem', err);
-            response.end(null);
-        } else {
-            var books = [];
+    var cacheValue = myCache.get("topBooks");
+    if(cacheValue != undefined) {
+      response.end(JSON.stringify(cacheValue));
+    } else {
+      var options = {SearchIndex: "Books", Keywords: "*", Availability: "Available", MerchantId: "Amazon", ResponseGroup: "ItemAttributes", Sort: "salesrank"};
 
-            for(var index in result.Items.Item) {
-                var item = result.Items.Item[index];
-                var JSONObj = { "title":item.ItemAttributes.Title, "asin":item.ASIN, "url":item.DetailPageURL, "author":item.ItemAttributes.Author, "isbn":item.ItemAttributes.EAN };
-                books.push(JSONObj);
-            }
-            response.end(JSON.stringify(books));
-        }
-    })
+      prodAdv.call("ItemSearch", options, function(err, result) {
+          if(err) {
+              console.error('Amazon Top Book Search Problem', err);
+              response.end(null);
+          } else {
+              var books = [];
+
+              for(var index in result.Items.Item) {
+                  var item = result.Items.Item[index];
+                  var JSONObj = { "title":item.ItemAttributes.Title, "asin":item.ASIN, "url":item.DetailPageURL, "author":item.ItemAttributes.Author, "isbn":item.ItemAttributes.EAN };
+                  books.push(JSONObj);
+              }
+              myCache.set("topBooks", books);
+              response.end(JSON.stringify(books));
+          }
+      })
+    }
 }
 
 /*
@@ -284,27 +287,32 @@ exports.amazonBookLists = function (responseGroup, response) {
 exports.nytBookLists = function (response) {
     console.log('About to execute book search for top books on NYT!');
 
-    request.get({
-      url: "https://api.nytimes.com/svc/books/v3/lists.json",
-      qs: {
-        'api-key': "35ae9d527f0848a6843b3cef66afb73b",
-        'list': "combined-print-and-e-book-nonfiction"
-      },
-    }, function(err, resp, body) {
-      body = JSON.parse(body);
+    var cacheValue = myCache.get("topBooksNyt");
+    if(cacheValue != undefined) {
+      response.end(JSON.stringify(cacheValue));
+    } else {
+      request.get({
+        url: "https://api.nytimes.com/svc/books/v3/lists.json",
+        qs: {
+          'api-key': "35ae9d527f0848a6843b3cef66afb73b",
+          'list': "combined-print-and-e-book-nonfiction"
+        },
+      }, function(err, resp, body) {
+        body = JSON.parse(body);
 
-      var books = [];
+        var books = [];
 
-      for(var i = 0; i < 10; i++) {
-        var bookDetails = body.results[i].book_details[0];
-        // I 'think' that primary_isbn10 is usually the ASIN!
-        var bookTitle = bookDetails.title.charAt(0).toUpperCase() + bookDetails.title.slice(1).toLowerCase();
-        var JSONObj = { "title":bookTitle, "asin":bookDetails.primary_isbn10, "url":body.results[i].amazon_product_url, "author":bookDetails.author, "isbn":bookDetails.primary_isbn13 };
-        books.push(JSONObj);
-      }
-
-      response.end(JSON.stringify(books));
-    });
+        for(var i = 0; i < 10; i++) {
+          var bookDetails = body.results[i].book_details[0];
+          // I 'think' that primary_isbn10 is usually the ASIN!
+          var bookTitle = bookDetails.title.charAt(0).toUpperCase() + bookDetails.title.slice(1).toLowerCase();
+          var JSONObj = { "title":bookTitle, "asin":bookDetails.primary_isbn10, "url":body.results[i].amazon_product_url, "author":bookDetails.author, "isbn":bookDetails.primary_isbn13 };
+          books.push(JSONObj);
+        }
+        myCache.set("topBooksNyt", books);
+        response.end(JSON.stringify(books));
+      });
+    }
 }
 
 function googleBooksLookup() {
