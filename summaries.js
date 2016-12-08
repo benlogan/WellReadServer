@@ -2,6 +2,31 @@ var pg = require('pg');
 
 var books = require('./books.js');
 
+exports.summaryCount = function () {
+    console.log('summary counting!');
+    var client = new pg.Client(conString);
+    client.connect(function(err) {
+      if(err) {
+        return console.error('could not connect to postgres', err);
+      }
+      client.query('SELECT isbn, count(id) FROM public."SummaryText" group by isbn', function(err, result) {
+        if(err) {
+          return console.error('error running query', err);
+        }
+        var summaryCountJSON = [];
+        for (var i = 0; i < result.rowCount; i++) {
+          var scJSON = {
+            "isbn":result.rows[i].isbn,
+            "count":result.rows[i].count
+          }
+          summaryCountJSON.push(scJSON);
+        }
+        exports.summaryCountJSON = summaryCountJSON;
+        client.end();
+      });
+    });
+}
+
 exports.summaryToDB = function (oAuthID, ISBN, text, response) {
     console.log('summaryToDB ISBN : ' + ISBN + ' text : ' + text);
     var client = new pg.Client(conString);
@@ -65,12 +90,8 @@ exports.voteSummaryFromDB = function (oAuthID, response) {
           votesJSON.push(voteJSON);
         }
 
-        //response.end(JSON.stringify(votesJSON));
         client.end();
-
-        var jsonResponse = JSON.stringify(votesJSON);
-        //console.log('JSON RESPONSE : ' + jsonResponse);
-        response(jsonResponse);
+        response(JSON.stringify(votesJSON));
       });
     });
 }

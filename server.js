@@ -26,6 +26,8 @@ conString = process.env.DATABASE_URL;
 // let the port be set by Heroku
 var port = process.env.PORT || 1337; // locally, use 1337
 
+summaries.summaryCount();
+
 // a middleware with no mount path; gets executed for every request to the app
 app.use(function(req, res, next) {
     //res.setHeader('charset', 'utf-8')
@@ -37,7 +39,6 @@ app.use(function(req, res, next) {
     next();
 });
 
-// respond with "hello world" when a GET request is made to the homepage
 app.get('/bookSearch', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookSearch(queryData.q, response);

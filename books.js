@@ -37,14 +37,23 @@ exports.amazonBookSearch = function (searchString, response) {
                 // what we really need is - are we returning the same title twice, if so, is it just because binding is different - if so, ignore them
                 // we have to check there is actually a full response in the result first! There wouldn't be for 'Breakfast at Ti', for example.
                 if(item.ItemAttributes) {
-                    if(searchString.toUpperCase() === item.ItemAttributes.Title.toUpperCase() && !exactMatchAlreadyAdded) {
-                        var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
-                        books.push(JSONObj);
-                        exactMatchAlreadyAdded = true;
-                    } else if (searchString.toUpperCase() != item.ItemAttributes.Title.toUpperCase()) {
-                        var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN };
-                        books.push(JSONObj);
+                  var count = 0;
+                  for (var key in summaries.summaryCountJSON) {
+                    if (summaries.summaryCountJSON.hasOwnProperty(key)) {
+                      var summaryResult = summaries.summaryCountJSON[key];
+                      if(summaryResult.isbn == item.ASIN) {
+                        count = summaryResult.count;
+                        //console.log('adding summary count : ' + count + ' for ASIN ' + item.ASIN);
+                      }
                     }
+                  }
+                  var JSONObj = { "title":item.ItemAttributes.Title, "isbn":item.ItemAttributes.EAN, "asin":item.ASIN, "synopsis":count };
+                  if(searchString.toUpperCase() === item.ItemAttributes.Title.toUpperCase() && !exactMatchAlreadyAdded) {
+                      books.push(JSONObj);
+                      exactMatchAlreadyAdded = true;
+                  } else if (searchString.toUpperCase() != item.ItemAttributes.Title.toUpperCase()) {
+                      books.push(JSONObj);
+                  }
                 }
             }
 

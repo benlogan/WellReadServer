@@ -57,5 +57,8 @@ SELECT * from (SELECT DISTINCT ON (isbn) isbn, text, datetime from public."Summa
 --SELECT oauthid from public."Users" group by oauthid having count(*) > 1;
 -- remove a user when I don't have a primary key!
 --delete from public."Users" where datetime = '2016-12-01 15:20:54.003206+00';
---SELECT * from public."Users";
+SELECT * from public."Users";
 --delete from public."Users" where oauthid = '999';
+
+SELECT isbn, count(id) FROM public."SummaryText" group by isbn;
+SELECT * FROM public."SummaryText" where isbn='0091816971';
