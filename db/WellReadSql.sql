@@ -62,3 +62,21 @@ SELECT * from public."Users";
 
 SELECT isbn, count(id) FROM public."SummaryText" group by isbn;
 SELECT * FROM public."SummaryText" where isbn='0091816971';
+
+-- updating synopsis text, minor typo correction etc
+SELECT text FROM public."SummaryText" where id='653';
+
+/*
+UPDATE public."SummaryText" SET text = 'This award winning debut novel introduces the ex-military cop, Jack Reacher. 
+Recently retired, with time on his hands, Jack Reacher uses the opportunity to go and explore his country in his own way.   
+With a passion for music, Reacher is on a mission to find out more about musician Blind Blake, which takes him to the town of Margrave, a picture perfect epitome of small town America. 
+Looking to eat and feed his coffee habit, Reacher wanders into a local cafe, where he is unwittingly arrested for murder. Without knowledge of the crime, Reacher lands in prison with a banker called Hubble. After Reacher saves his cell mate from a thrashing, the nervous and tight lipped, Hubble confides he is fearful for his life after the murder. The victim transpires to be Treasury Agent Joe Reacher, killed while investigating in Margrave. Reacher is blindsided by the news as Joe Reacher was his elder brother. 
+Committed to discovering what happened to Joe, Reacher, with the aid of two local cops, Finley and Roscoe, work together to investigate. They find corruption runs deep in Margrave involving the Chief of Police.  However, using his ingenuity Reacher uncovers a vast counterfeiting operation totalling millions of dollars, confirming the reason Joe was murdered.  
+Taking on those responsible, Reacher uses his exceptional military skills to eradicate the rot by  destroying the money holding warehouses, rescuing Roscoe and Hubble’s family whilst simultaneously bringing down the Fire and Police Station buildings in a spectacular way.   
+With action, drama and a sprinkling of romance, this novel is a true adventure.' where id='653'; 
+*/
+
+-- compare scraped synosis (for dups)
+-- string_agg(text, ':')
+SELECT count(text), array_agg(id) as id_array, array_agg(text) as text_array FROM public."SummaryText" where oauthid='99991' or oauthid='99992' group by isbn;
+SELECT * FROM public."SummaryText" where id='549';

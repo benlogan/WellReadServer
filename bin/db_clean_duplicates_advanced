@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+
+console.log('Starting Scripts : DB CLEAN DUPLICATES ADVANCED');
+
+var pg = require('pg');
+conString = process.env.DATABASE_URL;
+
+var client = new pg.Client(conString);
+
+//console.log('DB CLEAN DUPLICATES ADVANCED : client setup');
+
+client.connect(function(err) {
+  if(err) {
+    console.error('could not connect to postgres', err);
+  }
+  //console.log('DB CLEAN DUPLICATES ADVANCED : about to execute SEARCH');
+  client.query('SELECT isbn, count(text), array_agg(id) as id_array, array_agg(oauthid) as oauth_array, array_agg(text) as text_array FROM public."SummaryText" where oauthid=\'99991\' or oauthid=\'99992\' group by isbn', function(err, result) {
+    if(err) {
+      console.error('error running query', err);
+    } else {
+      console.log('DB CLEAN DUPLICATES ADVANCED : results count : ' + result.rowCount);
+      var count = 0;
+      for (var i = 0; i < result.rowCount; i++) {
+        if(result.rows[i].count > 1) {
+          count++;
+
+          /*
+          console.log('DB CLEAN DUPLICATES ADVANCED : ID : ' + result.rows[i].id_array[0]);
+          console.log('DB CLEAN DUPLICATES ADVANCED : Auth ID : ' + result.rows[i].oauth_array[0]);
+          //console.log('DB CLEAN DUPLICATES ADVANCED : text : ' + result.rows[i].text_array[0]);
+
+          console.log('DB CLEAN DUPLICATES ADVANCED : ID : ' + result.rows[i].id_array[1]);
+          console.log('DB CLEAN DUPLICATES ADVANCED : Auth ID : ' + result.rows[i].oauth_array[1]);
+          //console.log('DB CLEAN DUPLICATES ADVANCED : text : ' + result.rows[i].text_array[1]);
+          */
+
+          var synopsisOne = result.rows[i].text_array[0];
+          var synopsisTwo = result.rows[i].text_array[1];
+
+          // build up a score and then if the score is high enough, delete, or flag for deletion and quick manual check
+          var score = 0;
+
+          // are they even in the same ball park? (html formatting can make the two lengths appear quite different - FIXME just strip all of that?)
+          var lengthDiff = Math.abs(synopsisOne.length - synopsisTwo.length);
+          if(lengthDiff <= 15) {
+            //console.log(result.rows[i].isbn + ' : CLOSE MATCH (DIFF=' + lengthDiff + ') ON LENGTH FOR ' + result.rows[i].id_array[0] + ' & ' + result.rows[i].id_array[1]);
+            score++;
+          }
+
+          // do they start the same?
+          if(synopsisOne.substring(0, 20) == synopsisTwo.substring(0, 20)) {
+            //console.log(result.rows[i].isbn + ' : EXACT MATCH ON SYNOPSIS START ' + result.rows[i].id_array[0] + ' & ' + result.rows[i].id_array[1]);
+            score++;
+          }
+
+          // and end?
+          if(synopsisOne.substring(synopsisOne.length-20, synopsisOne.length) == synopsisTwo.substring(synopsisTwo.length-20, synopsisTwo.length)) {
+            //console.log(result.rows[i].isbn + ' : EXACT MATCH ON SYNOPSIS END ' + result.rows[i].id_array[0] + ' & ' + result.rows[i].id_array[1]);
+            score++;
+          }
+          //console.log('lengthDiff : ' + lengthDiff);
+
+          // more than 5 exact same sentences?
+
+          // high score?
+          if(score > 1) {
+            // DLS - duplicate probability score
+            console.log(result.rows[i].isbn + ' : I suggest you delete one of these! DPS : ' + score);
+          }
+        }
+      }
+      console.log('DB CLEAN DUPLICATES ADVANCED : I checked ' + count + ' possible duplicates.');
+    }
+    client.end();
+
+    pg.end();
+  });
+});
