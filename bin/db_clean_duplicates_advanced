@@ -20,6 +20,7 @@ client.connect(function(err) {
     } else {
       console.log('DB CLEAN DUPLICATES ADVANCED : results count : ' + result.rowCount);
       var count = 0;
+      var deleteCount = 0;
       for (var i = 0; i < result.rowCount; i++) {
         if(result.rows[i].count > 1) {
           count++;
@@ -60,16 +61,47 @@ client.connect(function(err) {
           }
           //console.log('lengthDiff : ' + lengthDiff);
 
-          // more than 5 exact same sentences?
+          var sentencesOne = synopsisOne.match( /[^\.!\?]+[\.!\?]+/g );
+          var sentencesTwo = synopsisTwo.match( /[^\.!\?]+[\.!\?]+/g );
+
+          //console.log(sentencesOne);
+          //console.log(sentencesTwo);
+
+          // similar number of sentences?
+          if(!sentencesOne || !sentencesTwo) {
+            //console.log(result.rows[i].isbn + ' : NO SENTENCES FOUND FOR ' + result.rows[i].id_array[0] + ' & ' + result.rows[i].id_array[1]);
+          } else if(Math.abs(sentencesOne.length - sentencesTwo.length) <= 3) {
+            //console.log(result.rows[i].isbn + ' : SIMILAR SENTENCE COUNT FOR ' + result.rows[i].id_array[0] + ' & ' + result.rows[i].id_array[1]);
+            score++;
+          }
+
+          // more than 2 exact same sentences?
+          // FIXME we should probably give this is a higher weighting!
+          if(sentencesOne && sentencesTwo) {
+            var sentenceMatch = 0;
+            for (var j = 0; j < sentencesOne.length; j++) {
+              for (var k = 0; k < sentencesTwo.length; k++) {
+                if(sentencesOne[j] == sentencesTwo[k]) {
+                  sentenceMatch++;
+                }
+              }
+              if(sentenceMatch >= 2) {
+                //console.log(result.rows[i].isbn + ' : SOME (>=2) EXACT SENTENCE MATCHING FOR ' + result.rows[i].id_array[0] + ' & ' + result.rows[i].id_array[1]);
+                score++;
+                break;
+              }
+            }
+          }
 
           // high score?
           if(score > 1) {
-            // DLS - duplicate probability score
-            console.log(result.rows[i].isbn + ' : I suggest you delete one of these! DPS : ' + score);
+            // duplicate probability score
+            console.log(result.rows[i].isbn + ' : I suggest you delete one of these! DPS : ' + score + ' (out of 5)');
+            deleteCount++;
           }
         }
       }
-      console.log('DB CLEAN DUPLICATES ADVANCED : I checked ' + count + ' possible duplicates.');
+      console.log('DB CLEAN DUPLICATES ADVANCED : checked ' + count + ' possible duplicates and suggest deletion of ' + deleteCount);
     }
     client.end();
 
