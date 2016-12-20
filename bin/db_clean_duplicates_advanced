@@ -9,6 +9,10 @@ var client = new pg.Client(conString);
 
 //console.log('DB CLEAN DUPLICATES ADVANCED : client setup');
 
+var count = 0;
+var deleteCount = 0;
+var deleteArray = new Array();
+
 client.connect(function(err) {
   if(err) {
     console.error('could not connect to postgres', err);
@@ -19,8 +23,7 @@ client.connect(function(err) {
       console.error('error running query', err);
     } else {
       console.log('DB CLEAN DUPLICATES ADVANCED : results count : ' + result.rowCount);
-      var count = 0;
-      var deleteCount = 0;
+
       for (var i = 0; i < result.rowCount; i++) {
         if(result.rows[i].count > 1) {
           count++;
@@ -98,13 +101,37 @@ client.connect(function(err) {
             // duplicate probability score
             console.log(result.rows[i].isbn + ' : I suggest you delete one of these! DPS : ' + score + ' (out of 5)');
             deleteCount++;
+
+            // delete the waterstones synopsis, the amazon one is more likely to be formatted etc
+            var deleteID;
+            if(result.rows[i].oauth_array[0] == '99992') {
+              deleteID = result.rows[i].id_array[0];
+            } else if (result.rows[i].oauth_array[1] == '99992') {
+              deleteID = result.rows[i].id_array[1];
+            }
+            //console.log('we will delete the synopsis with ID : ' + deleteID);
+
+            if(deleteID) {
+              deleteArray.push(deleteID);
+            }
           }
         }
       }
       console.log('DB CLEAN DUPLICATES ADVANCED : checked ' + count + ' possible duplicates and suggest deletion of ' + deleteCount);
+
+      if(deleteArray.length >= 1) {
+        client.query('DELETE FROM public."SummaryText" WHERE id in (' + deleteArray + ')', function(err, anotherResult) {
+          if(err) {
+            console.error('error running query', err);
+          } else {
+            console.log('DB CLEAN DUPLICATES ADVANCED : delete count : ' + anotherResult.rowCount);
+          }
+          client.end();
+          pg.end();
+        });
+      }
     }
     client.end();
-
     pg.end();
   });
 });
