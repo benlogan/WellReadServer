@@ -156,34 +156,35 @@ exports.amazonBookLookup = function (ASIN, response) {
     prodAdv.call("ItemLookup", options, function(err, result) {
         if(err) {
             console.error('Amazon Book Lookup Problem', err);
-        }
-
-        // iterate Item, we only care about the first (there should only ever be one)
-        // now that we aren't using a unique amazon ID there won't only be one! use the first for now...
-        var item = result.Items.Item;
-
-        // looks like some books, e.g. 'Lonely Planet France 9th Ed'
-        // dont have an image, resulting in an app crash when trying to read image URL here!
-        var imageURL = null;
-        if(item && item.LargeImage) {
-            imageURL = item.LargeImage.URL
-        }
-
-        if(item) {
-          var JSONObj =
-          {
-              "book": {
-                  "urlAmazon":item.DetailPageURL,
-                  "title":item.ItemAttributes.Title,
-                  "author":item.ItemAttributes.Author,
-                  "publisher":item.ItemAttributes.Publisher,
-                  "isbn":item.ItemAttributes.EAN,
-                  "asin":ASIN,
-                  "image":imageURL
-          }};
-          summaries.summaryFromDB(ASIN, response, JSONObj);
+            response.end(null);
         } else {
-          response.end(null);
+          // iterate Item, we only care about the first (there should only ever be one)
+          // now that we aren't using a unique amazon ID there won't only be one! use the first for now...
+          var item = result.Items.Item;
+
+          // looks like some books, e.g. 'Lonely Planet France 9th Ed'
+          // dont have an image, resulting in an app crash when trying to read image URL here!
+          var imageURL = null;
+          if(item && item.LargeImage) {
+              imageURL = item.LargeImage.URL
+          }
+
+          if(item) {
+            var JSONObj =
+            {
+                "book": {
+                    "urlAmazon":item.DetailPageURL,
+                    "title":item.ItemAttributes.Title,
+                    "author":item.ItemAttributes.Author,
+                    "publisher":item.ItemAttributes.Publisher,
+                    "isbn":item.ItemAttributes.EAN,
+                    "asin":ASIN,
+                    "image":imageURL
+            }};
+            summaries.summaryFromDB(ASIN, response, JSONObj);
+          } else {
+            response.end(null);
+          }
         }
     })
 }
