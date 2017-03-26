@@ -57,6 +57,10 @@ app.get('/bookLookup', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookLookup(queryData.ASIN, response);
 });
+app.get('/bookLookupTitle', function(request, response) {
+    var queryData = url.parse(request.url, true).query;
+    books.bookLookupTitle(queryData.TITLE, response);
+});
 app.get('/topBooks', function(request, response) {
     var queryData = url.parse(request.url, true).query;
     books.amazonBookLists(response);

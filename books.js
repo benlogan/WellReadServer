@@ -189,6 +189,32 @@ exports.amazonBookLookup = function (ASIN, response) {
     })
 }
 
+var pg = require('pg');
+
+exports.bookLookupTitle = function (title, response) {
+  var client = new pg.Client(conString);
+  client.connect(function(err) {
+    if(err) {
+      return console.error('could not connect to postgres', err);
+    }
+    client.query('SELECT isbn, friendlyurl FROM public."Books" WHERE friendlyurl = ($1)', [title], function(err, result) {
+      if(err) {
+        return console.error('error running query', err);
+      }
+      var idJSON = [];
+      for (var i = 0; i < result.rowCount; i++) {
+        var tempJSON = {
+          "isbn":result.rows[i].isbn,
+          "title":result.rows[i].friendlyurl
+        }
+        idJSON.push(tempJSON);
+      }
+      client.end();
+      response.end(JSON.stringify(idJSON));
+    });
+  });
+}
+
 // rather than using the TopSellers (see below), just do a regular search ranked by sales
 exports.amazonBookLists = function (response) {
     console.log('About to execute book search for top books!');
