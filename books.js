@@ -201,16 +201,15 @@ exports.bookLookupTitle = function (title, response) {
       if(err) {
         return console.error('error running query', err);
       }
-      var idJSON = [];
+      var tempJSON;
       for (var i = 0; i < result.rowCount; i++) {
-        var tempJSON = {
+        tempJSON = {
           "isbn":result.rows[i].isbn,
           "title":result.rows[i].friendlyurl
         }
-        idJSON.push(tempJSON);
       }
       client.end();
-      response.end(JSON.stringify(idJSON));
+      response.end(JSON.stringify(tempJSON));
     });
   });
 }
