@@ -26,7 +26,8 @@ conString = process.env.DATABASE_URL;
 // let the port be set by Heroku
 var port = process.env.PORT || 1337; // locally, use 1337
 
-summaries.summaryCount();
+// think this was just a test call!?
+//summaries.summaryCount();
 
 // a middleware with no mount path; gets executed for every request to the app
 app.use(function(req, res, next) {
