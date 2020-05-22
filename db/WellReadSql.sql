@@ -79,4 +79,7 @@ With action, drama and a sprinkling of romance, this novel is a true adventure.'
 -- compare scraped synosis (for dups)
 -- string_agg(text, ':')
 SELECT count(text), array_agg(id) as id_array, array_agg(text) as text_array FROM public."SummaryText" where oauthid='99991' or oauthid='99992' group by isbn;
-SELECT * FROM public."SummaryText" where id='549';
+SELECT * FROM public."SummaryText" where id='354';
+
+-- all prop content, for sitemap
+SELECT * FROM public."SummaryText" where oauthid != '99991' and oauthid != '99992' and oauthid != '752575310399475700';
